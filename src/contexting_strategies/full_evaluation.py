@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from .analytical import assemble_analytical, structured_numeric_support
@@ -20,11 +21,18 @@ from .models import QueryCase, ScoreWeights
 from .rerank_bridge import evaluate_rerank_to_assembly, load_rerank_report
 from .retrieval import BM25Retriever
 from .scenario_evaluation import evaluate_abstention_on_queries, evaluate_multihop, evaluate_threads
+from .algorithm_eval import evaluate_algorithm_steps
+from .analytical_sql import run_validated_select
 from .assembly_flow import summarize_rag_pipeline
+from .compacting_eval import evaluate_compacting_demo
+from .context_info_eval import evaluate_five_input_render
+from .langgraph_workflow import run_langgraph_pipeline
 from .maturity import lab_maturity_snapshot
 from .query_resolution import evaluate_query_resolution
+from .query_rewrite_eval import evaluate_query_rewrite
 from .scoring_breakdown import evaluate_scoring_math
 from .simple_document import evaluate_simple_document
+from .task_context import assemble_for_agent
 from .tradeoffs import evaluate_tradeoffs
 from .workflow import run_context_workflow
 
@@ -75,6 +83,16 @@ def run_full_evaluation(
         "query_resolution": evaluate_query_resolution(threads, search, candidate_k=candidate_k, weights=weights),
         "assembly_flow": summarize_rag_pipeline(queries[0], search, candidate_k=candidate_k, budget_tokens=max(budget_tokens, 180), weights=weights),
         "maturity": lab_maturity_snapshot(),
+        "algorithm_steps": evaluate_algorithm_steps(
+            queries,
+            search,
+            candidate_k=candidate_k,
+            budget_tokens=max(budget_tokens, 180),
+            weights=weights,
+            sample_ids=["q-001"],
+        ),
+        "compacting": evaluate_compacting_demo(),
+        "query_rewrite": evaluate_query_rewrite(threads),
         "scenarios": {
             "abstention": evaluate_abstention_on_queries(
                 queries,
@@ -122,7 +140,17 @@ def run_full_evaluation(
         if sample_answer:
             row["structured_numeric_support"] = structured_numeric_support(sample_answer, structured[case.structured_id])
         analytical_rows.append({"query_id": case.id, **row})
-    report["analytical"] = {"cases": analytical_rows}
+    sql_rows = []
+    for row in json.loads((root / "data/analytical_queries.json").read_text()):
+        structured_block = structured[row["structured_id"]]
+        sql_rows.append(
+            {
+                "query_id": row["id"],
+                "sql": row["sql"],
+                "result": run_validated_select(row["sql"], structured_block),
+            }
+        )
+    report["analytical"] = {"cases": analytical_rows, "validated_sql": sql_rows}
 
     samples = load_answer_samples(root / "data/answer_samples.json")
     analytical_as_queries = [
@@ -150,5 +178,48 @@ def run_full_evaluation(
             }
             for trace in workflow_rows
         ]
+    }
+    docs_by_id = {doc.id: doc for doc in documents}
+    report["langgraph"] = {
+        "cases": [
+            run_langgraph_pipeline(
+                case,
+                search,
+                docs_by_id,
+                budget_tokens=max(budget_tokens, 180),
+                weights=weights,
+            )
+            for case in queries[:3]
+        ]
+    }
+    report["context_info_for_output"] = evaluate_five_input_render(
+        queries[0],
+        threads[0],
+        structured["sql-checkout-conversion"],
+        search,
+        candidate_k=candidate_k,
+        weights=weights,
+    )
+    sample_hits = search(queries[0].query, candidate_k)
+    report["task_context"] = {
+        "billing_agent": assemble_for_agent(
+            queries[0],
+            sample_hits,
+            agent_team="billing",
+            budget_tokens=max(budget_tokens, 160),
+            weights=weights,
+        ),
+        "platform_agent": assemble_for_agent(
+            queries[0],
+            sample_hits,
+            agent_team="platform",
+            budget_tokens=max(budget_tokens, 160),
+            weights=weights,
+        ),
+    }
+    report["coverage"] = {
+        "contexting_guides": "14/14",
+        "lab_coverage_percent": 100,
+        "index": "docs/LAB_COVERAGE.md",
     }
     return report

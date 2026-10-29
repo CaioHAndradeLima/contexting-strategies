@@ -19,6 +19,15 @@ Maps each guide under [AI-System-Architecturing-Engineering/contexting](https://
 | [context-architecturing-decision-based.md](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-architecturing-decision-based.md) | `maturity.py` | `maturity` |
 | Query resolution (scoring-math section) | `query_resolution.py`, `threads.json` | `query_resolution` |
 | Rerank → assemble | `rerank_bridge.py` | `rerank_bridge` |
+| Algorithm steps 1–8 | `context_pipeline.py`, `algorithm_eval.py` | `algorithm_steps` |
+| Compacting (truncate / summarize) | `compacting.py`, `compacting_eval.py` | `compacting` |
+| Query rewriting | `query_rewrite.py`, `query_rewrite_eval.py` | `query_rewrite` |
+| LangGraph node roles | `langgraph_workflow.py` | `langgraph` |
+| Five prompt inputs (explicit) | `context_info_eval.py` | `context_info_for_output` |
+| Validated analytical SQL | `analytical_sql.py`, `data/analytical_queries.json` | `analytical.validated_sql` |
+| Multi-agent task context | `task_context.py` | `task_context` |
+
+**Coverage:** 14/14 guides — `evaluate-full` → `coverage.lab_coverage_percent` is **100** (lab syllabus; production deployment wiring is listed under `maturity.production_deployment_only`).
 
 Run everything:
 

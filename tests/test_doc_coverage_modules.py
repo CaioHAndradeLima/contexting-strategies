@@ -42,6 +42,13 @@ class DocCoverageModuleTests(unittest.TestCase):
             "query_resolution",
             "assembly_flow",
             "maturity",
+            "algorithm_steps",
+            "compacting",
+            "query_rewrite",
+            "langgraph",
+            "context_info_for_output",
+            "task_context",
+            "coverage",
         ):
             self.assertIn(key, report, msg=f"missing {key}")
         self.assertIn("recommended_for_coverage", report["tradeoffs"])
