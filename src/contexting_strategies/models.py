@@ -21,6 +21,9 @@ class Hit:
     source: str
 
 
+DEFAULT_TENANTS = ("billing", "platform", "catalog", "communications", "payments", "search")
+
+
 @dataclass(frozen=True)
 class QueryCase:
     id: str
@@ -29,7 +32,45 @@ class QueryCase:
     tags: tuple[str, ...] = ()
     answerable: bool = True
     reference_answer: str | None = None
-    allowed_tenants: tuple[str, ...] = ("billing", "platform", "catalog", "communications", "payments", "search")
+    allowed_tenants: tuple[str, ...] = DEFAULT_TENANTS
+
+
+@dataclass(frozen=True)
+class HopSpec:
+    id: str
+    label: str
+    query: str
+    relevance: dict[str, int]
+
+
+@dataclass(frozen=True)
+class MultiHopCase:
+    id: str
+    query: str
+    hops: tuple[HopSpec, ...]
+    tags: tuple[str, ...] = ()
+    allowed_tenants: tuple[str, ...] = DEFAULT_TENANTS
+
+
+@dataclass(frozen=True)
+class ConversationTurn:
+    role: str
+    content: str
+
+
+@dataclass(frozen=True)
+class ThreadScenario:
+    id: str
+    query: str
+    resolved_query: str
+    turns: tuple[ConversationTurn, ...]
+    relevance: dict[str, int]
+    history_strategy: str
+    history_n: int = 4
+    history_budget_tokens: int = 60
+    evidence_budget_tokens: int = 140
+    tags: tuple[str, ...] = ()
+    answerable: bool = True
 
 
 @dataclass(frozen=True)
@@ -49,6 +90,11 @@ class AssembledContext:
     dropped_unauthorized: int
     dropped_duplicate: int
     budget_tokens: int
+    should_abstain: bool = False
+    abstain_reason: str | None = None
+    history_token_count: int = 0
+    hop_coverage: float | None = None
+    evidence_coverage: float | None = None
 
 
 @dataclass(frozen=True)

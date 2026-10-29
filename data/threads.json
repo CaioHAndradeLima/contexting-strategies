@@ -1,0 +1,65 @@
+[
+  {
+    "id": "th-full-history",
+    "query": "Did we fix it?",
+    "resolved_query": "Was incident INC-4821 resolved and what mitigation was applied?",
+    "history_strategy": "full_history",
+    "history_n": 2,
+    "history_budget_tokens": 70,
+    "evidence_budget_tokens": 130,
+    "relevance": {"doc-006": 3, "doc-014": 2},
+    "tags": ["follow_up", "full_history"],
+    "turns": [
+      {"role": "user", "content": "Who owns catalog product descriptions and SKU metadata?"},
+      {"role": "assistant", "content": "The catalog team owns product descriptions, SKU metadata, and publication status."},
+      {"role": "user", "content": "How often does the catalog indexer refresh search documents?"},
+      {"role": "assistant", "content": "The catalog indexer refreshes product search documents every fifteen minutes."},
+      {"role": "user", "content": "What logging retention applies to application logs versus audit events?"},
+      {"role": "assistant", "content": "Application logs are retained thirty days; security audit events one year."},
+      {"role": "user", "content": "We saw checkout conversion drop last week—what should I check first?"},
+      {"role": "assistant", "content": "Start with checkout API error dashboards and billing worker health around INC-4821."}
+    ]
+  },
+  {
+    "id": "th-last-n",
+    "query": "Did we fix it?",
+    "resolved_query": "Was incident INC-4821 resolved and what mitigation was applied?",
+    "history_strategy": "last_n",
+    "history_n": 2,
+    "history_budget_tokens": 70,
+    "evidence_budget_tokens": 130,
+    "relevance": {"doc-006": 3, "doc-014": 2},
+    "tags": ["follow_up", "last_n"],
+    "turns": [
+      {"role": "user", "content": "Who owns catalog product descriptions and SKU metadata?"},
+      {"role": "assistant", "content": "The catalog team owns product descriptions, SKU metadata, and publication status."},
+      {"role": "user", "content": "How often does the catalog indexer refresh search documents?"},
+      {"role": "assistant", "content": "The catalog indexer refreshes product search documents every fifteen minutes."},
+      {"role": "user", "content": "What logging retention applies to application logs versus audit events?"},
+      {"role": "assistant", "content": "Application logs are retained thirty days; security audit events one year."},
+      {"role": "user", "content": "We saw checkout conversion drop last week—what should I check first?"},
+      {"role": "assistant", "content": "Start with checkout API error dashboards and billing worker health around INC-4821."}
+    ]
+  },
+  {
+    "id": "th-summary-recent",
+    "query": "Did we fix it?",
+    "resolved_query": "Was incident INC-4821 resolved and what mitigation was applied?",
+    "history_strategy": "summary_plus_recent",
+    "history_n": 2,
+    "history_budget_tokens": 70,
+    "evidence_budget_tokens": 130,
+    "relevance": {"doc-006": 3, "doc-014": 2},
+    "tags": ["follow_up", "summary_plus_recent"],
+    "turns": [
+      {"role": "user", "content": "Who owns catalog product descriptions and SKU metadata?"},
+      {"role": "assistant", "content": "The catalog team owns product descriptions, SKU metadata, and publication status."},
+      {"role": "user", "content": "How often does the catalog indexer refresh search documents?"},
+      {"role": "assistant", "content": "The catalog indexer refreshes product search documents every fifteen minutes."},
+      {"role": "user", "content": "What logging retention applies to application logs versus audit events?"},
+      {"role": "assistant", "content": "Application logs are retained thirty days; security audit events one year."},
+      {"role": "user", "content": "We saw checkout conversion drop last week—what should I check first?"},
+      {"role": "assistant", "content": "Start with checkout API error dashboards and billing worker health around INC-4821."}
+    ]
+  }
+]

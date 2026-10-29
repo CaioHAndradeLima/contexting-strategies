@@ -45,7 +45,7 @@
   {
     "id": "q-007",
     "query": "Where are production database credentials stored?",
-    "relevance": {"doc-005": 2, "doc-011": 3},
+    "relevance": {"doc-015": 3},
     "tags": ["tenant_acl"],
     "allowed_tenants": ["billing"],
     "reference_answer": "Billing users should not receive platform-only secret details; abstain or use billing-safe guidance."

@@ -39,6 +39,27 @@ python -m contexting_strategies.cli evaluate \
   --output reports/run.json
 ```
 
+Extended scenarios (multi-hop assembly, conversation history budgeting, insufficient-evidence gate):
+
+```bash
+python -m contexting_strategies.cli evaluate-scenarios \
+  --output reports/scenarios.json
+```
+
+### Scenario results (same environment, 2026-10-29)
+
+Guides: [multi-hop question](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-multi-hop-question.md), [conversation strategies](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-conversation-strategies.md), [evaluate assembling — no-answer handling](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-evaluate-assembling.md).
+
+| Scenario | Baseline | Improved approach | Measured result |
+| --- | --- | --- | --- |
+| **Multi-hop timeline** (`mh-001`, 180-token budget) | One retrieval on the vague question *“What is the timeline?”* | Per-hop sub-queries with fair budget split + dated sections | Hop coverage **0.17** → **0.83** |
+| **Follow-up thread** (“Did we fix it?” + 8-turn history, 200-token total budget) | `full_history` fills **65** history tokens | `last_n` (2 turns) uses **26** history tokens | Evidence coverage **1.0** in both; `last_n` lowers utilization (**0.49** vs **0.69**) leaving headroom for more evidence on tighter budgets |
+| **Abstention gate** (pipeline + sufficiency check, 200-token budget) | Answer when coverage is thin | `INSUFFICIENT_EVIDENCE` when coverage &lt; threshold or corpus has no labels | **100%** abstain decision accuracy on the seven-query golden set (including unanswerable `q-006`) |
+
+Multi-hop assembly does **not** call an LLM for decomposition—the golden file lists explicit hop sub-queries, matching the doc pattern “one query per facet.” Production systems often learn or infer those sub-queries; here they are labeled for reproducible measurement.
+
+The sufficiency gate prefix is a **prompt-level abstain signal** for the demo. Wire it to your product’s UX (clarifying question, ticket escalation, etc.) in a real service.
+
 ## Architecture
 
 ```
@@ -80,6 +101,8 @@ Default weights (`0.45 / 0.20 / 0.20 / 0.15`) are **illustrative**. Calibrate on
 | Relevant evidence per token | Count of label ≥ 1 chunks ÷ tokens |
 | Citation traceability | Fraction of included chunks whose citation ID appears in the rendered prompt |
 | Unauthorized leak rate | Fraction of queries where a chunk from a disallowed tenant appears (should be 0 after ACL) |
+| Hop coverage | For multi-hop cases, average per-hop evidence coverage (label ≥ 2) |
+| Abstain decision accuracy | Whether abstain/abstain-not matches answerable labels and coverage rules |
 | Assembly latency | Time to filter, score, dedupe, and render (local CPU, sub-millisecond here) |
 
 Token estimates use the same regex tokenizer as the demo retriever—consistent for budgeting comparisons, not a vendor-exact token count.
@@ -111,9 +134,11 @@ CI runs the same suite on Ubuntu with Python 3.11 (see `.github/workflows/tests.
 
 ## Limitations
 
-- Retrieval is BM25-only; no conversation history, summarization, or structured SQL blocks yet ([context info for output](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-info-for-output.md)).
-- No LLM calls; groundedness and abstention behavior are out of scope for this repo.
-- Seven synthetic queries cannot calibrate real weights or predict production coverage.
+- Retrieval is BM25-only; no LLM query rewriting, summarization model, or structured SQL blocks ([context info for output](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-info-for-output.md)).
+- Multi-hop sub-queries are **authored in fixtures**, not generated at runtime.
+- Conversation “summary” is deterministic bullet compression, not an LLM summary—real summaries need faithfulness checks.
+- No LLM answer generation; downstream groundedness is out of scope.
+- Synthetic queries cannot calibrate real weights or predict production coverage.
 
 ## Related documentation
 
