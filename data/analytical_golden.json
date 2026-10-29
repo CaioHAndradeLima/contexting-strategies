@@ -1,0 +1,11 @@
+[
+  {
+    "id": "an-001",
+    "query": "Explain the checkout conversion drop using validated metrics and supporting policy context.",
+    "structured_id": "sql-checkout-conversion",
+    "required_metrics": ["3.0%", "-12%"],
+    "relevance": {"doc-012": 2},
+    "tags": ["analytical", "sql"],
+    "reference_answer": "Conversion fell to 3.0% for the week starting 2026-08-18, a 12% week-over-week drop, consistent with the metrics note about API latency."
+  }
+]

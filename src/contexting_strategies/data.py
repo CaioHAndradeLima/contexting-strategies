@@ -1,7 +1,18 @@
 import json
 from pathlib import Path
 
-from .models import DEFAULT_TENANTS, Document, HopSpec, MultiHopCase, QueryCase, ThreadScenario, ConversationTurn
+from .models import (
+    DEFAULT_TENANTS,
+    AnalyticalCase,
+    AnswerSample,
+    ConversationTurn,
+    Document,
+    HopSpec,
+    MultiHopCase,
+    QueryCase,
+    StructuredResult,
+    ThreadScenario,
+)
 
 
 def load_documents(path: Path) -> list[Document]:
@@ -94,6 +105,65 @@ def validate_multihop_dataset(documents: list[Document], cases: list[MultiHopCas
             unknown = set(hop.relevance.keys()) - doc_ids
             if unknown:
                 raise ValueError(f"hop {case.id}/{hop.id} references unknown documents: {sorted(unknown)}")
+
+
+def load_structured_results(path: Path) -> dict[str, StructuredResult]:
+    payload = json.loads(path.read_text())
+    results = {}
+    for row in payload:
+        results[row["id"]] = StructuredResult(
+            id=row["id"],
+            label=row["label"],
+            columns=tuple(row["columns"]),
+            rows=tuple(tuple(cell for cell in r) for r in row["rows"]),
+            units_note=row.get("units_note", ""),
+        )
+    return results
+
+
+def load_analytical_cases(path: Path) -> list[AnalyticalCase]:
+    payload = json.loads(path.read_text())
+    cases = []
+    for row in payload:
+        cases.append(
+            AnalyticalCase(
+                id=row["id"],
+                query=row["query"],
+                structured_id=row["structured_id"],
+                relevance={key: int(value) for key, value in row.get("relevance", {}).items()},
+                required_metrics=tuple(row.get("required_metrics", [])),
+                tags=tuple(row.get("tags", [])),
+                answerable=row.get("answerable", True),
+                reference_answer=row.get("reference_answer"),
+            )
+        )
+    return cases
+
+
+def load_answer_samples(path: Path) -> list[AnswerSample]:
+    payload = json.loads(path.read_text())
+    return [
+        AnswerSample(
+            query_id=row["query_id"],
+            answer=row["answer"],
+            evidence_ids=tuple(row.get("evidence_ids", [])),
+        )
+        for row in payload
+    ]
+
+
+def validate_analytical_dataset(
+    documents: list[Document],
+    cases: list[AnalyticalCase],
+    structured: dict[str, StructuredResult],
+) -> None:
+    doc_ids = {doc.id for doc in documents}
+    for case in cases:
+        if case.structured_id not in structured:
+            raise ValueError(f"analytical case {case.id} missing structured result {case.structured_id}")
+        unknown = set(case.relevance.keys()) - doc_ids
+        if unknown:
+            raise ValueError(f"analytical case {case.id} references unknown documents: {sorted(unknown)}")
 
 
 def validate_dataset(documents: list[Document], queries: list[QueryCase]) -> None:

@@ -1,0 +1,535 @@
+{
+  "source": "reranking-strategies evaluate (bm25 mode)",
+  "results": [
+    {
+      "query_id": "q-001",
+      "query": "Which service owns invoice payment retries?",
+      "answerable": true,
+      "candidate_ids": [
+        "doc-003",
+        "doc-002",
+        "doc-009",
+        "doc-001",
+        "doc-010",
+        "doc-006"
+      ],
+      "retrieval_ms": 0.023791799321770668,
+      "strategies": {
+        "retrieval": {
+          "recall": 1.0,
+          "mrr": 0.5,
+          "ndcg": 0.6914596415193961,
+          "ranked_ids": [
+            "doc-003",
+            "doc-002",
+            "doc-009",
+            "doc-001",
+            "doc-010"
+          ],
+          "scores": [
+            6.480194030742651,
+            3.696288619985438,
+            2.7639237283826246,
+            2.034259372267577,
+            1.6017346388369897
+          ],
+          "latency_ms": 0.023791799321770668,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "heuristic": {
+          "recall": 1.0,
+          "mrr": 0.5,
+          "ndcg": 0.7129278093711621,
+          "ranked_ids": [
+            "doc-003",
+            "doc-002",
+            "doc-001",
+            "doc-009",
+            "doc-006"
+          ],
+          "scores": [
+            0.32499999999999996,
+            0.26666666666666666,
+            0.20833333333333331,
+            0.20833333333333331,
+            0.09166666666666667
+          ],
+          "latency_ms": 0.03995886072516441,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "mmr": {
+          "recall": 1.0,
+          "mrr": 0.5,
+          "ndcg": 0.6914596415193961,
+          "ranked_ids": [
+            "doc-003",
+            "doc-002",
+            "doc-009",
+            "doc-001",
+            "doc-010"
+          ],
+          "scores": [
+            0.75,
+            0.36649588291280843,
+            0.19222199464728668,
+            0.10852830366808391,
+            0.09549754908579018
+          ],
+          "latency_ms": 0.3782501444220543,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        }
+      }
+    },
+    {
+      "query_id": "q-002",
+      "query": "What happened in INC-4821?",
+      "answerable": true,
+      "candidate_ids": [
+        "doc-006",
+        "doc-005",
+        "doc-001"
+      ],
+      "retrieval_ms": 0.01795915886759758,
+      "strategies": {
+        "retrieval": {
+          "recall": 1.0,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "ranked_ids": [
+            "doc-006",
+            "doc-005",
+            "doc-001"
+          ],
+          "scores": [
+            2.693543761410219,
+            1.4622512160064827,
+            1.401239343294112
+          ],
+          "latency_ms": 0.01795915886759758,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "heuristic": {
+          "recall": 1.0,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "ranked_ids": [
+            "doc-006",
+            "doc-001",
+            "doc-005"
+          ],
+          "scores": [
+            0.225,
+            0.0875,
+            0.0875
+          ],
+          "latency_ms": 0.019750092178583145,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "mmr": {
+          "recall": 1.0,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "ranked_ids": [
+            "doc-006",
+            "doc-005",
+            "doc-001"
+          ],
+          "scores": [
+            0.75,
+            0.021895252325873138,
+            -0.04411764705882353
+          ],
+          "latency_ms": 0.08987495675683022,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        }
+      }
+    },
+    {
+      "query_id": "q-003",
+      "query": "How long are security audit events retained?",
+      "answerable": true,
+      "candidate_ids": [
+        "doc-008",
+        "doc-007",
+        "doc-005",
+        "doc-002"
+      ],
+      "retrieval_ms": 0.012499978765845299,
+      "strategies": {
+        "retrieval": {
+          "recall": 1.0,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "ranked_ids": [
+            "doc-008",
+            "doc-007",
+            "doc-005",
+            "doc-002"
+          ],
+          "scores": [
+            10.596683845039479,
+            0.9223006914947277,
+            0.8821424610958281,
+            0.8633468120667976
+          ],
+          "latency_ms": 0.012499978765845299,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "heuristic": {
+          "recall": 1.0,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "ranked_ids": [
+            "doc-008",
+            "doc-002",
+            "doc-005",
+            "doc-007"
+          ],
+          "scores": [
+            0.25,
+            0.049999999999999996,
+            0.049999999999999996,
+            0.049999999999999996
+          ],
+          "latency_ms": 0.019416911527514458,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "mmr": {
+          "recall": 1.0,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "ranked_ids": [
+            "doc-008",
+            "doc-007",
+            "doc-002",
+            "doc-005"
+          ],
+          "scores": [
+            0.75,
+            -0.0035218387901953,
+            -0.016129032258064516,
+            -0.0298017056766843
+          ],
+          "latency_ms": 0.136583112180233,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        }
+      }
+    },
+    {
+      "query_id": "q-004",
+      "query": "How do I find a stuck payment retry?",
+      "answerable": true,
+      "candidate_ids": [
+        "doc-006",
+        "doc-009",
+        "doc-002",
+        "doc-003",
+        "doc-004",
+        "doc-001"
+      ],
+      "retrieval_ms": 0.012875068932771683,
+      "strategies": {
+        "retrieval": {
+          "recall": 0.6666666666666666,
+          "mrr": 0.5,
+          "ndcg": 0.5692897379691039,
+          "ranked_ids": [
+            "doc-006",
+            "doc-009",
+            "doc-002",
+            "doc-003",
+            "doc-004"
+          ],
+          "scores": [
+            3.953549581626281,
+            3.2615493330375127,
+            3.1951397293521806,
+            1.6728033661139459,
+            1.6017346388369897
+          ],
+          "latency_ms": 0.012875068932771683,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "heuristic": {
+          "recall": 1.0,
+          "mrr": 1.0,
+          "ndcg": 0.7497534568197889,
+          "ranked_ids": [
+            "doc-002",
+            "doc-006",
+            "doc-009",
+            "doc-001",
+            "doc-003"
+          ],
+          "scores": [
+            0.225,
+            0.19999999999999998,
+            0.15625,
+            0.1125,
+            0.04375
+          ],
+          "latency_ms": 0.02804095856845379,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "mmr": {
+          "recall": 0.6666666666666666,
+          "mrr": 0.5,
+          "ndcg": 0.5188972012643011,
+          "ranked_ids": [
+            "doc-006",
+            "doc-002",
+            "doc-009",
+            "doc-003",
+            "doc-004"
+          ],
+          "scores": [
+            0.75,
+            0.49141012808389867,
+            0.4793180047082222,
+            0.09241007522910724,
+            0.08846077784295761
+          ],
+          "latency_ms": 0.35283295437693596,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        }
+      }
+    },
+    {
+      "query_id": "q-005",
+      "query": "Who owns catalog product descriptions?",
+      "answerable": true,
+      "candidate_ids": [
+        "doc-010",
+        "doc-004",
+        "doc-002"
+      ],
+      "retrieval_ms": 0.010417075827717781,
+      "strategies": {
+        "retrieval": {
+          "recall": 1.0,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "ranked_ids": [
+            "doc-010",
+            "doc-004",
+            "doc-002"
+          ],
+          "scores": [
+            8.228481620690427,
+            3.2034692776739795,
+            1.43109529521089
+          ],
+          "latency_ms": 0.010417075827717781,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "heuristic": {
+          "recall": 1.0,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "ranked_ids": [
+            "doc-010",
+            "doc-004",
+            "doc-002"
+          ],
+          "scores": [
+            0.5,
+            0.13999999999999999,
+            0.06999999999999999
+          ],
+          "latency_ms": 0.013208948075771332,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "mmr": {
+          "recall": 1.0,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "ranked_ids": [
+            "doc-010",
+            "doc-004",
+            "doc-002"
+          ],
+          "scores": [
+            0.75,
+            0.16777981203650133,
+            -0.027777777777777776
+          ],
+          "latency_ms": 0.06574997678399086,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        }
+      }
+    },
+    {
+      "query_id": "q-006",
+      "query": "What is the retention period for chat recordings?",
+      "answerable": false,
+      "candidate_ids": [
+        "doc-008",
+        "doc-001",
+        "doc-010",
+        "doc-005",
+        "doc-009",
+        "doc-002",
+        "doc-006",
+        "doc-004",
+        "doc-003",
+        "doc-007"
+      ],
+      "retrieval_ms": 0.012709060683846474,
+      "strategies": {
+        "retrieval": {
+          "recall": 0.0,
+          "mrr": 0.0,
+          "ndcg": 0.0,
+          "ranked_ids": [
+            "doc-008",
+            "doc-001",
+            "doc-010",
+            "doc-005",
+            "doc-009"
+          ],
+          "scores": [
+            4.303570448929488,
+            2.0855482100871954,
+            1.8230229017681225,
+            0.24255562640018322,
+            0.23401493532975426
+          ],
+          "latency_ms": 0.012709060683846474,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "heuristic": {
+          "recall": 0.0,
+          "mrr": 0.0,
+          "ndcg": 0.0,
+          "ranked_ids": [
+            "doc-008",
+            "doc-001",
+            "doc-010",
+            "doc-002",
+            "doc-003"
+          ],
+          "scores": [
+            0.1125,
+            0.0875,
+            0.0875,
+            0.04375,
+            0.04375
+          ],
+          "latency_ms": 0.04224991425871849,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        },
+        "mmr": {
+          "recall": 0.0,
+          "mrr": 0.0,
+          "ndcg": 0.0,
+          "ranked_ids": [
+            "doc-008",
+            "doc-001",
+            "doc-010",
+            "doc-005",
+            "doc-003"
+          ],
+          "scores": [
+            0.75,
+            0.3493741815455712,
+            0.2930275028192,
+            -0.004345990934351271,
+            -0.022727272727272728
+          ],
+          "latency_ms": 0.5997091066092253,
+          "request_count": 0,
+          "retry_count": 0,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0,
+          "estimated_cost_usd": 0
+        }
+      }
+    }
+  ]
+}

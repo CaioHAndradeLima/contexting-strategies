@@ -16,6 +16,7 @@ from .data import (
 from .evaluation import evaluate
 from .models import ScoreWeights
 from .retrieval import BM25Retriever
+from .full_evaluation import run_full_evaluation
 from .scenario_evaluation import evaluate_abstention_on_queries, evaluate_multihop, evaluate_threads
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -97,7 +98,7 @@ def _run_evaluate_scenarios(args: argparse.Namespace) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate context assembly strategies for RAG prompts")
-    parser.add_argument("command", choices=["evaluate", "evaluate-scenarios"])
+    parser.add_argument("command", choices=["evaluate", "evaluate-scenarios", "evaluate-full"])
     parser.add_argument("--documents", default=str(ROOT / "data/documents.json"))
     parser.add_argument("--queries", default=str(ROOT / "data/golden.json"))
     parser.add_argument("--multihop", default=str(ROOT / "data/multihop_golden.json"))
@@ -114,8 +115,23 @@ def main() -> None:
 
     if args.command == "evaluate":
         report = _run_evaluate(args)
-    else:
+    elif args.command == "evaluate-scenarios":
         report = _run_evaluate_scenarios(args)
+    else:
+        weights = ScoreWeights(
+            relevance=args.weight_relevance,
+            freshness=args.weight_freshness,
+            authority=args.weight_authority,
+            task=args.weight_task,
+        )
+        report = run_full_evaluation(
+            ROOT,
+            candidate_k=args.candidate_k,
+            budget_tokens=args.budget_tokens,
+            multihop_budget_tokens=args.multihop_budget_tokens,
+            weights=weights,
+        )
+        report["environment"] = _environment_note()
 
     serialized = json.dumps(report, indent=2)
     if args.output:

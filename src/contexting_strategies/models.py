@@ -98,6 +98,48 @@ class AssembledContext:
 
 
 @dataclass(frozen=True)
+class StructuredResult:
+    id: str
+    label: str
+    columns: tuple[str, ...]
+    rows: tuple[tuple[str, ...], ...]
+    units_note: str = ""
+
+    def render_table(self) -> str:
+        header = " | ".join(self.columns)
+        lines = [header, "-+-".join("-" * len(column) for column in self.columns)]
+        for row in self.rows:
+            lines.append(" | ".join(row))
+        return "\n".join(lines)
+
+
+@dataclass(frozen=True)
+class AnalyticalCase:
+    id: str
+    query: str
+    structured_id: str
+    relevance: dict[str, int]
+    required_metrics: tuple[str, ...] = ()
+    tags: tuple[str, ...] = ()
+    answerable: bool = True
+    reference_answer: str | None = None
+
+
+@dataclass(frozen=True)
+class ApplicationContext:
+    question: str
+    locale: str = "en-US"
+    output_format: str = "plain_text"
+
+
+@dataclass(frozen=True)
+class AnswerSample:
+    query_id: str
+    answer: str
+    evidence_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class ScoreWeights:
     relevance: float = 0.45
     freshness: float = 0.20

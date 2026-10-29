@@ -1,0 +1,17 @@
+[
+  {
+    "query_id": "q-002",
+    "answer": "INC-4821 was caused by a stuck billing worker. Remediation increased retry attempts from two to three.",
+    "evidence_ids": ["doc-006"]
+  },
+  {
+    "query_id": "q-006",
+    "answer": "Insufficient evidence in the corpus to answer about chat recording retention.",
+    "evidence_ids": []
+  },
+  {
+    "query_id": "an-001",
+    "answer": "Checkout conversion was 3.0% for week_start 2026-08-18, down 12% week over week.",
+    "evidence_ids": ["doc-012"]
+  }
+]
