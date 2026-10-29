@@ -2,7 +2,43 @@
 
 An engineering lab for a practical RAG question that sits **after retrieval** and **before the LLM call**: **how should you assemble evidence into a prompt under a token budget** without leaking unauthorized text, repeating the same facts, or starving critical passages?
 
-The project implements the [context algorithm](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-algorithm.md), extended scenarios from the contexting docs, a **rerank → assemble** bridge to [reranking-strategies](https://github.com/CaioHAndradeLima/reranking-strategies), analytical SQL+doc prompts, offline groundedness checks, and a linear **workflow** trace (retrieve → rerank → assemble → sufficiency). It is for learning and controlled experiments—not a hosted chat service.
+The project implements the [context algorithm](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-algorithm.md), extended scenarios from the contexting docs, a **rerank → assemble** bridge to [reranking-strategies](https://github.com/CaioHAndradeLima/reranking-strategies), and a **production-style measurement pipeline** with optional **LLM judges** and cost accounting. Offline commands remain available for CI; live measurement requires an API key.
+
+## Production measurement pipeline (`measure`)
+
+Use this when you want to compare **assembly strategies** the way a production eval job would: same retrieval (optional heuristic rerank), assemble, offline metrics, then—when enabled—**generate an answer**, **judge context quality**, and **judge answer groundedness** with structured JSON rubrics.
+
+```bash
+cp .env.example .env   # set OPENAI_API_KEY
+pip install -e '.[llm-judge]'
+
+# Offline only (CI-safe): offline metrics + abstention, no API spend
+python -m contexting_strategies.cli measure \
+  --strategies pipeline_acl_dedupe_score_diverse,weighted_score \
+  --budget-tokens 200 --output reports/measure-offline.json
+
+# Live LLM measurement (answer + dual judges, hard call budget)
+python -m contexting_strategies.cli measure \
+  --live-llm \
+  --strategies pipeline_acl_dedupe_score_diverse,weighted_score,naive_retrieval_order \
+  --budget-tokens 200 \
+  --answer-model gpt-6-luna \
+  --judge-model gpt-6-luna \
+  --max-llm-calls 150 \
+  --output reports/measure-live.json
+```
+
+| Stage | Component | Output |
+| --- | --- | --- |
+| Retrieve | BM25 (+ optional heuristic rerank) | Candidate set shared across strategies |
+| Assemble | Selected assemblers | Prompt + offline metrics (coverage, leaks, redundancy) |
+| Sufficiency | Gate | Skip generation when evidence is thin |
+| Generate | `OpenAIAnswerGenerator` | Answer from assembled context only |
+| Judge context | `OpenAIContextJudge` | sufficiency / citations / safety (0–4) |
+| Judge answer | `OpenAIAnswerJudge` | correctness / groundedness / calibration (0–4) |
+| Report | `measurement_pipeline.py` | Per-strategy summary, token/cost totals, recommendation |
+
+Environment variables (`CONTEXT_LAB_*`) and flags are documented in [.env.example](.env.example). **Do not** treat demo corpus scores as production SLAs—swap in your corpus, golden labels, and models, then rerun `measure`.
 
 ## Start here
 
@@ -69,9 +105,10 @@ Query + ACL
 
 | Command | Purpose |
 | --- | --- |
-| `evaluate` | Compare naive / weighted / pipeline assemblers |
+| `measure` | **Production pipeline** — strategy comparison + optional LLM generate/judge |
+| `evaluate` | Compare naive / weighted / pipeline assemblers (offline) |
 | `evaluate-scenarios` | Multi-hop, conversation history, abstention |
-| `evaluate-full` | All tracks above + rerank bridge + analytical + groundedness + workflow |
+| `evaluate-full` | All offline tracks + rerank bridge + analytical + lexical groundedness + workflow |
 
 ## Data files
 
@@ -94,7 +131,8 @@ python -m unittest discover -s tests -v
 
 ## Honest limitations
 
-- **No live LLM** for assembly, summarization, or judging unless you add your own integration; groundedness is a lexical baseline, not GPT-as-judge.
+- **`measure --live-llm`** uses OpenAI APIs; costs depend on prompt size and query count. Cap calls with `--max-llm-calls`.
+- Offline **`evaluate-full` groundedness** remains lexical; live **`measure`** uses LLM judges when enabled.
 - **Multi-hop sub-queries are fixture-authored**, not model-generated.
 - **LangGraph** is represented as an explicit Python workflow, not a LangChain dependency.
 - **Analytical** data is toy SQL rows, not a real warehouse connector.

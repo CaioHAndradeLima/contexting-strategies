@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "contexting-strategies"
-version = "0.3.0"
+version = "0.4.0"
 description = "A reproducible context assembly evaluation lab for RAG prompts"
 requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
 dev = []
+llm-judge = ["openai>=1.100"]
 
 [project.scripts]
 context-lab = "contexting_strategies.cli:main"
