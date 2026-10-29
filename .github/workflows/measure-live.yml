@@ -31,13 +31,16 @@ jobs:
       - name: Build image with LLM judge extras
         run: docker build --build-arg INSTALL_LLM_JUDGE=1 -t contexting-strategies:live .
       - name: Run live measure
+        id: live
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           if [ -z "${OPENAI_API_KEY}" ]; then
-            echo "OPENAI_API_KEY secret is required for measure-live"
-            exit 1
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice title=measure-live skipped::OPENAI_API_KEY is not set. Use ./scripts/measure-live-local.sh locally with CURSOR_API_KEY."
+            exit 0
           fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
           mkdir -p reports
           docker run --rm \
             -e OPENAI_API_KEY \
@@ -52,11 +55,13 @@ jobs:
               --max-llm-calls '${{ inputs.max_llm_calls }}' \
               --output /reports/measure-live.json
       - name: Quality gate
+        if: steps.live.outputs.skip != 'true'
         run: |
           docker run --rm -v "$PWD/reports:/reports" contexting-strategies:live \
             check-measure --profile '${{ inputs.profile }}' \
             --report /reports/measure-live.json
       - name: Upload live report
+        if: steps.live.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: measure-live

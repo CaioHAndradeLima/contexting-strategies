@@ -17,11 +17,11 @@ from .evaluation import evaluate
 from .models import ScoreWeights
 from .retrieval import BM25Retriever
 from .full_evaluation import run_full_evaluation
-from .llm_judge import OpenAIAnswerGenerator, OpenAIAnswerJudge, OpenAIContextJudge
+from .llm_factory import build_live_llm_stack, resolve_llm_provider
 from .measure_profiles import evaluate_gates, load_measure_profiles
 from .measurement_pipeline import run_measurement_pipeline, select_assemblers
 from .pipeline_config import PipelineConfig
-from .pricing import CallBudget, OPENAI_STANDARD_RATES_PER_MILLION, PRICING_AS_OF, PRICING_SOURCE
+from .pricing import OPENAI_STANDARD_RATES_PER_MILLION, PRICING_AS_OF, PRICING_SOURCE
 from .scenario_evaluation import evaluate_abstention_on_queries, evaluate_multihop, evaluate_threads
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -143,16 +143,13 @@ def _run_measure(args: argparse.Namespace) -> dict:
     retriever = BM25Retriever(documents)
 
     context_judge = answer_generator = answer_judge = None
+    llm_provider = resolve_llm_provider(getattr(args, "llm_provider", None) or None)
     if config.live_llm:
-        budget = CallBudget(config.max_llm_calls)
-        try:
-            from openai import OpenAI
-        except ImportError as exc:
-            raise RuntimeError("Install with: pip install -e '.[llm-judge]'") from exc
-        client = OpenAI()
-        context_judge = OpenAIContextJudge(config.judge_model, client, budget)
-        answer_generator = OpenAIAnswerGenerator(config.answer_model, client, budget)
-        answer_judge = OpenAIAnswerJudge(config.judge_model, client, budget)
+        context_judge, answer_generator, answer_judge, llm_provider = build_live_llm_stack(
+            config,
+            provider=getattr(args, "llm_provider", None) or None,
+            cwd=ROOT,
+        )
 
     report = run_measurement_pipeline(
         queries,
@@ -168,9 +165,15 @@ def _run_measure(args: argparse.Namespace) -> dict:
         report["profile"] = {"name": profile.name, "description": profile.description}
     report["environment"] = _environment_note()
     if config.live_llm:
-        report["environment"]["pricing_as_of"] = PRICING_AS_OF
-        report["environment"]["pricing_source"] = PRICING_SOURCE
-        report["environment"]["pricing_rates_usd_per_million_tokens"] = OPENAI_STANDARD_RATES_PER_MILLION
+        report["environment"]["llm_provider"] = llm_provider
+        if llm_provider == "openai":
+            report["environment"]["pricing_as_of"] = PRICING_AS_OF
+            report["environment"]["pricing_source"] = PRICING_SOURCE
+            report["environment"]["pricing_rates_usd_per_million_tokens"] = OPENAI_STANDARD_RATES_PER_MILLION
+        else:
+            report["environment"]["pricing_note"] = (
+                "Cursor local agent; use CURSOR_API_KEY from Cursor Integrations (no OpenAI key required)."
+            )
     return report
 
 
@@ -200,7 +203,12 @@ def main() -> None:
     parser.add_argument("--weight-authority", type=float, default=0.20)
     parser.add_argument("--weight-task", type=float, default=0.15)
     parser.add_argument("--strategies", default="", help="Comma-separated assembler names for measure")
-    parser.add_argument("--live-llm", action="store_true", help="Run answer generation and LLM judges (requires API key)")
+    parser.add_argument("--live-llm", action="store_true", help="Run answer generation and LLM judges")
+    parser.add_argument(
+        "--llm-provider",
+        default="",
+        help="openai (API key) or cursor (local Cursor agent via CURSOR_API_KEY); auto if unset",
+    )
     parser.add_argument("--no-rerank", action="store_true", help="Skip heuristic rerank before assembly in measure")
     parser.add_argument("--answer-model", default="")
     parser.add_argument("--judge-model", default="")

@@ -2,30 +2,38 @@
 
 An engineering lab for a practical RAG question that sits **after retrieval** and **before the LLM call**: **how should you assemble evidence into a prompt under a token budget** without leaking unauthorized text, repeating the same facts, or starving critical passages?
 
-The project implements the [context algorithm](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-algorithm.md), extended scenarios from the contexting docs, a **rerank → assemble** bridge to [reranking-strategies](https://github.com/CaioHAndradeLima/reranking-strategies), and a **production-style measurement pipeline** with optional **LLM judges** and cost accounting. Offline commands remain available for CI; live measurement requires an API key.
+The project implements the [context algorithm](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-algorithm.md), extended scenarios from the contexting docs, a **rerank → assemble** bridge to [reranking-strategies](https://github.com/CaioHAndradeLima/reranking-strategies), and a **production-style measurement pipeline** with optional **LLM judges** and cost accounting. Offline commands remain available for CI; live measurement can use **OpenAI** or your **local Cursor agent** (no OpenAI key).
 
 ## Production measurement pipeline (`measure`)
 
 Use this when you want to compare **assembly strategies** the way a production eval job would: same retrieval (optional heuristic rerank), assemble, offline metrics, then—when enabled—**generate an answer**, **judge context quality**, and **judge answer groundedness** with structured JSON rubrics.
 
 ```bash
-cp .env.example .env   # set OPENAI_API_KEY
-pip install -e '.[llm-judge]'
+cp .env.example .env   # CURSOR_API_KEY and/or OPENAI_API_KEY
+pip install -e '.[llm-judge,llm-cursor]'
 
 # Offline only (CI-safe): offline metrics + abstention, no API spend
 python -m contexting_strategies.cli measure \
   --strategies pipeline_acl_dedupe_score_diverse,weighted_score \
   --budget-tokens 200 --output reports/measure-offline.json
 
-# Live LLM measurement (answer + dual judges, hard call budget)
+# Live LLM measurement with local Cursor agent (same rubrics, hard call budget)
+./scripts/measure-live-local.sh nightly-live reports/measure-live-cursor.json
+
+# Or explicitly:
 python -m contexting_strategies.cli measure \
-  --live-llm \
-  --strategies pipeline_acl_dedupe_score_diverse,weighted_score,naive_retrieval_order \
-  --budget-tokens 200 \
-  --answer-model gpt-6-luna \
-  --judge-model gpt-6-luna \
+  --live-llm --llm-provider cursor \
+  --profile nightly-live \
+  --max-llm-calls 80 \
+  --output reports/measure-live-cursor.json
+
+# OpenAI path (optional)
+python -m contexting_strategies.cli measure \
+  --live-llm --llm-provider openai \
+  --strategies pipeline_acl_dedupe_score_diverse,weighted_score \
+  --answer-model gpt-6-luna --judge-model gpt-6-luna \
   --max-llm-calls 150 \
-  --output reports/measure-live.json
+  --output reports/measure-live-openai.json
 ```
 
 | Stage | Component | Output |
@@ -66,9 +74,7 @@ context-lab check-measure --profile ci-tight-budget --report reports/m.json
 **GitHub Actions**
 
 - [`measure-gate.yml`](.github/workflows/measure-gate.yml) — on every push/PR: Docker image build, matrix over profiles (`ci-all-strategies`, `ci-tight-budget`, `ci-pipeline-only`), measure + quality gate, artifact upload.
-- [`measure-live.yml`](.github/workflows/measure-live.yml) — manual `workflow_dispatch`: live LLM measure with repository secret `OPENAI_API_KEY` (profile `nightly-live`).
-
-Add `OPENAI_API_KEY` under **Settings → Secrets and variables → Actions** before running the live workflow.
+- [`measure-live.yml`](.github/workflows/measure-live.yml) — manual `workflow_dispatch` for **OpenAI** live measure. If `OPENAI_API_KEY` is missing, the job **skips** with a notice (safe to leave the secret empty). For local live runs without OpenAI, use `./scripts/measure-live-local.sh` with `CURSOR_API_KEY`.
 
 ## Start here
 
