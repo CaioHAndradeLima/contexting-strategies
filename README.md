@@ -57,7 +57,13 @@ Strategy sets and pass/fail thresholds live in [config/measure_profiles.json](co
 | `ci-all-strategies` | naive, weighted, pipeline | PR gate: compare all assemblers |
 | `ci-pipeline-only` | pipeline | Fast smoke on production assembler |
 | `ci-tight-budget` | weighted, pipeline | Stress small token budget |
+| `ci-contexting-eval` | pipeline scorecard | **Recommended PR gate** — coverage, leaks, redundancy, citations, abstention, multi-hop lift |
 | `nightly-live` | pipeline, weighted + LLM judges | Manual/nightly with API key |
+
+```bash
+context-lab evaluate-pipeline --profile ci-contexting-eval --output reports/pipeline-eval.json
+context-lab check-measure --profile ci-contexting-eval --report reports/pipeline-eval.json
+```
 
 ```bash
 # Local production-like run (offline)
@@ -150,6 +156,7 @@ Query + ACL
 | Command | Purpose |
 | --- | --- |
 | `measure` | **Production pipeline** — strategy comparison + optional LLM generate/judge |
+| `evaluate-pipeline` | **Contexting scorecard** — assembly + abstention + multi-hop with `scorecard` summary |
 | `check-measure` | Apply profile quality gates to a measure report JSON (exit 1 on failure) |
 | `evaluate` | Compare naive / weighted / pipeline assemblers (offline) |
 | `evaluate-scenarios` | Multi-hop, conversation history, abstention |
@@ -176,11 +183,10 @@ python -m unittest discover -s tests -v
 
 ## Honest limitations
 
-- **`measure --live-llm`** uses OpenAI APIs; costs depend on prompt size and query count. Cap calls with `--max-llm-calls`.
-- Offline **`evaluate-full` groundedness** remains lexical; live **`measure`** uses LLM judges when enabled.
-- **Multi-hop sub-queries are fixture-authored**, not model-generated.
-- **LangGraph** is represented as an explicit Python workflow, not a LangChain dependency.
-- **Analytical** data is toy SQL rows, not a real warehouse connector.
+- **`evaluate-full`** reports **`coverage.lab_coverage_percent: 100`** for the [contexting guide syllabus](docs/LAB_COVERAGE.md)—every `contexting/*.md` topic has runnable code. That is not the same as production deployment (Fargate, live warehouse SQL, org-wide tracing)—see `maturity.production_deployment_only`.
+- **`measure --live-llm`** can use OpenAI or **Cursor** (`--llm-provider cursor`); cap calls with `--max-llm-calls`.
+- Offline groundedness is lexical; live **`measure`** uses LLM judges when enabled.
+- **Query rewrite** in the lab is rule-based; swap in an LLM rewriter in production if needed.
 - Synthetic corpora **do not predict** production metrics.
 
 ## Related documentation

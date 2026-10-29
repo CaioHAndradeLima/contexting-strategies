@@ -14,6 +14,7 @@ on:
           - ci-all-strategies
           - ci-pipeline-only
           - ci-tight-budget
+          - ci-contexting-eval
 
 jobs:
   measure-profiles:
@@ -25,6 +26,7 @@ jobs:
           - ci-all-strategies
           - ci-tight-budget
           - ci-pipeline-only
+          - ci-contexting-eval
     steps:
       - uses: actions/checkout@v4
       - name: Build image
@@ -32,9 +34,15 @@ jobs:
       - name: Run measure profile
         run: |
           mkdir -p reports
+          PROFILE="${{ matrix.profile }}"
+          if [ "${PROFILE}" = "ci-contexting-eval" ]; then
+            CMD="evaluate-pipeline"
+          else
+            CMD="measure"
+          fi
           docker run --rm -v "$PWD/reports:/reports" contexting-strategies:ci \
-            measure --profile "${{ matrix.profile }}" \
-            --output "/reports/measure-${{ matrix.profile }}.json"
+            "${CMD}" --profile "${PROFILE}" \
+            --output "/reports/measure-${PROFILE}.json"
       - name: Quality gate
         run: |
           docker run --rm -v "$PWD/reports:/reports" contexting-strategies:ci \

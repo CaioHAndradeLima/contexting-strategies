@@ -22,6 +22,7 @@ from .measure_profiles import evaluate_gates, load_measure_profiles
 from .measurement_pipeline import run_measurement_pipeline, select_assemblers
 from .pipeline_config import PipelineConfig
 from .pricing import OPENAI_STANDARD_RATES_PER_MILLION, PRICING_AS_OF, PRICING_SOURCE
+from .pipeline_evaluation import run_contexting_pipeline_eval
 from .scenario_evaluation import evaluate_abstention_on_queries, evaluate_multihop, evaluate_threads
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -177,6 +178,30 @@ def _run_measure(args: argparse.Namespace) -> dict:
     return report
 
 
+def _run_evaluate_pipeline(args: argparse.Namespace) -> dict:
+    if not args.profile:
+        raise SystemExit("evaluate-pipeline requires --profile (e.g. ci-contexting-eval)")
+    profile = _resolve_profile(args.profile)
+    weights = ScoreWeights(
+        relevance=args.weight_relevance,
+        freshness=args.weight_freshness,
+        authority=args.weight_authority,
+        task=args.weight_task,
+    )
+    report = run_contexting_pipeline_eval(
+        ROOT,
+        profile,
+        weights=weights,
+        multihop_budget_tokens=args.multihop_budget_tokens,
+    )
+    report["environment"] = _environment_note()
+    if profile.live_llm:
+        report["environment"]["note_live_llm"] = (
+            "For live judges use measure --profile with live_llm; evaluate-pipeline focuses on offline scorecard."
+        )
+    return report
+
+
 def _run_check_measure(args: argparse.Namespace) -> dict:
     if not args.report:
         raise SystemExit("check-measure requires --report")
@@ -189,7 +214,17 @@ def _run_check_measure(args: argparse.Namespace) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate context assembly strategies for RAG prompts")
-    parser.add_argument("command", choices=["evaluate", "evaluate-scenarios", "evaluate-full", "measure", "check-measure"])
+    parser.add_argument(
+        "command",
+        choices=[
+            "evaluate",
+            "evaluate-scenarios",
+            "evaluate-full",
+            "evaluate-pipeline",
+            "measure",
+            "check-measure",
+        ],
+    )
     parser.add_argument("--documents", default=str(ROOT / "data/documents.json"))
     parser.add_argument("--queries", default=str(ROOT / "data/golden.json"))
     parser.add_argument("--multihop", default=str(ROOT / "data/multihop_golden.json"))
@@ -224,6 +259,8 @@ def main() -> None:
         report = _run_evaluate_scenarios(args)
     elif args.command == "measure":
         report = _run_measure(args)
+    elif args.command == "evaluate-pipeline":
+        report = _run_evaluate_pipeline(args)
     elif args.command == "check-measure":
         report = _run_check_measure(args)
     else:
