@@ -4,6 +4,57 @@ A **learning lab** for one step in RAG and multi-agent systems: after something 
 
 Concept guides live in [AI-System-Architecturing-Engineering → contexting](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/tree/main/contexting). This repo is the **runnable version** on a synthetic corpus (not a hosted product).
 
+### Where context assembly runs (multi-agent stack)
+
+In production, **orchestration** picks which agent acts; each agent still does retrieve → **assemble context** → generate. This project implements and measures the **assemble** step (highlighted)—per agent, with tenant/task-scoped evidence—not the supervisor graph or hosted infra.
+
+```mermaid
+flowchart TB
+  User([User + conversation state]) --> Sup[Supervisor / router / planner]
+
+  Sup --> AgBill[Billing agent]
+  Sup --> AgKnow[Knowledge agent]
+  Sup --> AgAn[Analytics agent]
+
+  subgraph bill [Billing agent path]
+    direction LR
+    b_rw[Optional query rewrite]
+    b_ret[retrieve_node]
+    b_asm["assemble_context_node — THIS LAB"]
+    b_gen[generate_answer_node]
+    b_val[validate / abstain]
+    b_rw --> b_ret --> b_asm --> b_gen --> b_val
+    b_val -->|insufficient evidence| b_ret
+  end
+
+  subgraph know [Knowledge agent path]
+    direction LR
+    k_ret[retrieve_node]
+    k_asm["assemble_context_node — THIS LAB"]
+    k_gen[generate_answer_node]
+    k_rw2[Optional query rewrite] --> k_ret --> k_asm --> k_gen
+  end
+
+  subgraph anal [Analytics agent path]
+    direction LR
+    a_sql[Validated SQL / API]
+    a_asm["assemble_context_node — THIS LAB"]
+    a_gen[generate_answer_node]
+    a_sql --> a_asm --> a_gen
+  end
+
+  AgBill --> bill
+  AgKnow --> know
+  AgAn --> anal
+
+  b_val --> Merge[Synthesize / handoff / final reply]
+  k_gen --> Merge
+  a_gen --> Merge
+  Merge --> User
+```
+
+Single-agent RAG is the same picture with **one** agent box: no supervisor merge, one retrieve → assemble → generate chain.
+
 ---
 
 ## 1. What is “context” in a multi-agent system?
