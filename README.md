@@ -120,3 +120,5 @@ CI runs the same suite on Ubuntu with Python 3.11 (see `.github/workflows/tests.
 - [Contexting overview](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/tree/main/contexting)
 - [Simple document question shape](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-simple-document-question.md)
 - Companion code lab: [reranking-strategies](https://github.com/CaioHAndradeLima/reranking-strategies) (candidate ordering before assembly)
+
+Documentation source repo: [AI-System-Architecturing-Engineering](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/tree/main/contexting).
