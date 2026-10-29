@@ -1,0 +1,147 @@
+[
+  {
+    "id": "doc-001",
+    "title": "Invoice retry policy",
+    "text": "The billing worker retries failed invoice payments three times with exponential backoff. Retry state is stored in the billing_jobs table.",
+    "metadata": {
+      "team": "billing",
+      "tenant": "billing",
+      "authority_tier": "official",
+      "updated_at": "2026-01-10T00:00:00Z",
+      "citation_id": "policy-invoice-retry"
+    }
+  },
+  {
+    "id": "doc-002",
+    "title": "Payment retry queue",
+    "text": "Invoice retry messages are published to the billing queue. The retry worker owns payment retry scheduling and exponential backoff.",
+    "metadata": {
+      "team": "billing",
+      "tenant": "billing",
+      "authority_tier": "official",
+      "updated_at": "2026-02-01T00:00:00Z",
+      "citation_id": "arch-billing-queue"
+    }
+  },
+  {
+    "id": "doc-002b",
+    "title": "Payment retry queue (draft)",
+    "text": "Invoice retry messages are published to the billing queue. The retry worker owns payment retry scheduling and exponential backoff.",
+    "metadata": {
+      "team": "billing",
+      "tenant": "billing",
+      "authority_tier": "draft",
+      "updated_at": "2026-09-01T00:00:00Z",
+      "content_hash": "dup-billing-queue-v1",
+      "citation_id": "draft-billing-queue"
+    }
+  },
+  {
+    "id": "doc-003",
+    "title": "Customer notification service",
+    "text": "The notification service emails customers after an invoice payment fails. It does not schedule payment retries.",
+    "metadata": {
+      "team": "communications",
+      "tenant": "communications",
+      "authority_tier": "official",
+      "updated_at": "2025-11-01T00:00:00Z",
+      "citation_id": "svc-notifications"
+    }
+  },
+  {
+    "id": "doc-004",
+    "title": "Search index refresh",
+    "text": "The catalog indexer refreshes product search documents every fifteen minutes using a background job.",
+    "metadata": {
+      "team": "search",
+      "tenant": "search",
+      "authority_tier": "official",
+      "updated_at": "2026-03-15T00:00:00Z",
+      "citation_id": "runbook-search-index"
+    }
+  },
+  {
+    "id": "doc-005",
+    "title": "Database connection settings",
+    "text": "The API connects to PostgreSQL through the DATABASE_URL environment variable. Production credentials are stored in the secret manager.",
+    "metadata": {
+      "team": "platform",
+      "tenant": "platform",
+      "authority_tier": "official",
+      "updated_at": "2026-06-01T00:00:00Z",
+      "citation_id": "platform-db-config"
+    }
+  },
+  {
+    "id": "doc-006",
+    "title": "Invoice retry incident INC-4821",
+    "text": "Incident INC-4821 was caused by a stuck billing worker. The remediation increased the retry limit from two attempts to three.",
+    "metadata": {
+      "team": "billing",
+      "tenant": "billing",
+      "authority_tier": "runbook",
+      "updated_at": "2026-08-20T00:00:00Z",
+      "citation_id": "inc-4821"
+    }
+  },
+  {
+    "id": "doc-007",
+    "title": "Refund approval workflow",
+    "text": "Refund requests above 500 dollars require manager approval. Approved refunds are processed by the payments API.",
+    "metadata": {
+      "team": "payments",
+      "tenant": "payments",
+      "authority_tier": "official",
+      "updated_at": "2026-04-01T00:00:00Z",
+      "citation_id": "policy-refunds"
+    }
+  },
+  {
+    "id": "doc-008",
+    "title": "Log retention standard",
+    "text": "Application logs are retained for thirty days. Security audit events are retained for one year.",
+    "metadata": {
+      "team": "platform",
+      "tenant": "platform",
+      "authority_tier": "official",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "citation_id": "standard-log-retention"
+    }
+  },
+  {
+    "id": "doc-009",
+    "title": "Invoice retry runbook",
+    "text": "To inspect stuck payment retries, check billing_jobs and the billing queue, then restart the billing worker. The policy allows three attempts.",
+    "metadata": {
+      "team": "billing",
+      "tenant": "billing",
+      "authority_tier": "runbook",
+      "updated_at": "2026-09-10T00:00:00Z",
+      "citation_id": "runbook-stuck-retries"
+    }
+  },
+  {
+    "id": "doc-010",
+    "title": "Product catalog ownership",
+    "text": "The catalog team owns product descriptions, SKU metadata, and publication status for the storefront.",
+    "metadata": {
+      "team": "catalog",
+      "tenant": "catalog",
+      "authority_tier": "official",
+      "updated_at": "2026-02-20T00:00:00Z",
+      "citation_id": "ownership-catalog"
+    }
+  },
+  {
+    "id": "doc-011",
+    "title": "Platform secret rotation (restricted)",
+    "text": "Production DATABASE_URL credentials rotate every ninety days. Only platform SREs may read the live secret value.",
+    "metadata": {
+      "team": "platform",
+      "tenant": "platform",
+      "authority_tier": "official",
+      "updated_at": "2026-10-01T00:00:00Z",
+      "citation_id": "restricted-secret-rotation"
+    }
+  }
+]
