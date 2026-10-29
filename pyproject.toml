@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "contexting-strategies"
 version = "0.7.0"
-description = "A reproducible context assembly evaluation lab for RAG prompts"
+description = "Reference implementation and evaluation gates for RAG context assembly best practices"
 requires-python = ">=3.10"
 dependencies = []
 
