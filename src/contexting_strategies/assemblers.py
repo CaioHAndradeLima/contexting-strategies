@@ -2,7 +2,8 @@ import hashlib
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 
-from .models import AssembledContext, ContextChunk, Hit, QueryCase, ScoreWeights
+from .context_pipeline import AlgorithmTrace, continue_algorithm_trace, preprocess_candidates
+from .models import AssembledContext, ContextChunk, Document, Hit, QueryCase, ScoreWeights
 from .scoring import score_hits
 from .tokens import estimate_document_tokens, estimate_tokens
 
@@ -176,9 +177,45 @@ class WeightedScoreAssembler(ContextAssembler):
 
 
 class PipelineAssembler(ContextAssembler):
-    """ACL filter, dedupe, weighted score, diversity cap, budget, citation render."""
+    """Full context algorithm steps 1–8 via context_pipeline.py."""
 
     name = "pipeline_acl_dedupe_score_diverse"
+
+    def _assemble_from_pipeline(
+        self,
+        case: QueryCase,
+        hits: list[Hit],
+        budget_tokens: int,
+        weights: ScoreWeights,
+    ) -> tuple[AssembledContext, AlgorithmTrace]:
+        preprocessed, trace = preprocess_candidates(hits, case)
+        packed, trace = continue_algorithm_trace(trace, case, preprocessed, weights, budget_tokens)
+        dup_stats = next(s for s in trace.steps if s["step"] == 2)
+        selected: list[ContextChunk] = []
+        for hit, assembly_score, text in packed:
+            doc = Document(hit.document.id, hit.document.title, text, hit.document.metadata)
+            citation_id = str(doc.metadata.get("citation_id", doc.id))
+            selected.append(
+                ContextChunk(
+                    document=doc,
+                    retrieval_score=hit.score,
+                    assembly_score=assembly_score,
+                    citation_id=citation_id,
+                )
+            )
+        blocks = [_render_block(chunk) for chunk in selected]
+        header = f"Question: {case.query}\nEvidence:\n"
+        rendered = header + "\n\n".join(blocks)
+        context = AssembledContext(
+            strategy=self.name,
+            chunks=tuple(selected),
+            rendered=rendered,
+            token_count=estimate_tokens(rendered),
+            dropped_unauthorized=trace.dropped_unauthorized,
+            dropped_duplicate=int(dup_stats.get("duplicate_hash", 0)),
+            budget_tokens=budget_tokens,
+        )
+        return context, trace
 
     def assemble(
         self,
@@ -187,30 +224,17 @@ class PipelineAssembler(ContextAssembler):
         budget_tokens: int,
         weights: ScoreWeights,
     ) -> AssembledContext:
-        allowed: list[Hit] = []
-        dropped_unauthorized = 0
-        for hit in hits:
-            if _tenant_allowed(hit.document, case.allowed_tenants):
-                allowed.append(hit)
-            else:
-                dropped_unauthorized += 1
-        scored = score_hits(allowed, case, weights)
-        context = _pack_chunks(
-            self.name,
-            scored,
-            case,
-            budget_tokens,
-            max_per_document=1,
-        )
-        return AssembledContext(
-            strategy=context.strategy,
-            chunks=context.chunks,
-            rendered=context.rendered,
-            token_count=context.token_count,
-            dropped_unauthorized=dropped_unauthorized,
-            dropped_duplicate=context.dropped_duplicate,
-            budget_tokens=context.budget_tokens,
-        )
+        context, _ = self._assemble_from_pipeline(case, hits, budget_tokens, weights)
+        return context
+
+    def assemble_with_trace(
+        self,
+        case: QueryCase,
+        hits: list[Hit],
+        budget_tokens: int,
+        weights: ScoreWeights,
+    ) -> tuple[AssembledContext, AlgorithmTrace]:
+        return self._assemble_from_pipeline(case, hits, budget_tokens, weights)
 
 
 def default_assemblers() -> list[ContextAssembler]:

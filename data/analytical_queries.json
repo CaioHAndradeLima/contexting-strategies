@@ -1,0 +1,7 @@
+[
+  {
+    "id": "aq-001",
+    "structured_id": "sql-checkout-conversion",
+    "sql": "SELECT week_start, conversion_rate, wow_change FROM checkout_conversion_weekly WHERE week_start = '2026-08-18'"
+  }
+]

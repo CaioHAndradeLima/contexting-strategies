@@ -85,6 +85,32 @@
     }
   },
   {
+    "id": "doc-006-detail",
+    "title": "INC-4821 mitigation timeline",
+    "text": "Mitigation completed 2026-08-20 after billing worker restart and queue drain.",
+    "metadata": {
+      "team": "billing",
+      "tenant": "billing",
+      "authority_tier": "runbook",
+      "parent_id": "doc-006",
+      "updated_at": "2026-08-21T00:00:00Z",
+      "citation_id": "inc-4821-detail"
+    }
+  },
+  {
+    "id": "doc-tombstone",
+    "title": "Deprecated invoice FAQ",
+    "text": "This document is retired and must not appear in prompts.",
+    "metadata": {
+      "team": "billing",
+      "tenant": "billing",
+      "authority_tier": "draft",
+      "tombstone": true,
+      "updated_at": "2020-01-01T00:00:00Z",
+      "citation_id": "retired-faq"
+    }
+  },
+  {
     "id": "doc-007",
     "title": "Refund approval workflow",
     "text": "Refund requests above 500 dollars require manager approval. Approved refunds are processed by the payments API.",
