@@ -17,6 +17,10 @@ from .evaluation import evaluate
 from .models import ScoreWeights
 from .retrieval import BM25Retriever
 from .full_evaluation import run_full_evaluation
+from .llm_judge import OpenAIAnswerGenerator, OpenAIAnswerJudge, OpenAIContextJudge
+from .measurement_pipeline import run_measurement_pipeline, select_assemblers
+from .pipeline_config import PipelineConfig
+from .pricing import CallBudget, OPENAI_STANDARD_RATES_PER_MILLION, PRICING_AS_OF, PRICING_SOURCE
 from .scenario_evaluation import evaluate_abstention_on_queries, evaluate_multihop, evaluate_threads
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -96,9 +100,63 @@ def _run_evaluate_scenarios(args: argparse.Namespace) -> dict:
     return report
 
 
+def _run_measure(args: argparse.Namespace) -> dict:
+    documents = load_documents(Path(args.documents))
+    queries = load_queries(Path(args.queries))
+    validate_dataset(documents, queries)
+    env_config = PipelineConfig.from_env()
+    config = PipelineConfig(
+        candidate_k=args.candidate_k,
+        budget_tokens=args.budget_tokens,
+        apply_heuristic_rerank=not args.no_rerank,
+        live_llm=args.live_llm or env_config.live_llm,
+        answer_model=args.answer_model or env_config.answer_model,
+        judge_model=args.judge_model or env_config.judge_model,
+        max_llm_calls=args.max_llm_calls,
+        min_coverage=args.min_coverage,
+    )
+    weights = ScoreWeights(
+        relevance=args.weight_relevance,
+        freshness=args.weight_freshness,
+        authority=args.weight_authority,
+        task=args.weight_task,
+    )
+    assemblers = select_assemblers([s.strip() for s in args.strategies.split(",") if s.strip()] or None)
+    retriever = BM25Retriever(documents)
+
+    context_judge = answer_generator = answer_judge = None
+    if config.live_llm:
+        budget = CallBudget(config.max_llm_calls)
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            raise RuntimeError("Install with: pip install -e '.[llm-judge]'") from exc
+        client = OpenAI()
+        context_judge = OpenAIContextJudge(config.judge_model, client, budget)
+        answer_generator = OpenAIAnswerGenerator(config.answer_model, client, budget)
+        answer_judge = OpenAIAnswerJudge(config.judge_model, client, budget)
+
+    report = run_measurement_pipeline(
+        queries,
+        lambda query, limit: retriever.search(query, limit),
+        config,
+        weights=weights,
+        assemblers=assemblers,
+        context_judge=context_judge,
+        answer_generator=answer_generator,
+        answer_judge=answer_judge,
+    )
+    report["environment"] = _environment_note()
+    if config.live_llm:
+        report["environment"]["pricing_as_of"] = PRICING_AS_OF
+        report["environment"]["pricing_source"] = PRICING_SOURCE
+        report["environment"]["pricing_rates_usd_per_million_tokens"] = OPENAI_STANDARD_RATES_PER_MILLION
+    return report
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate context assembly strategies for RAG prompts")
-    parser.add_argument("command", choices=["evaluate", "evaluate-scenarios", "evaluate-full"])
+    parser.add_argument("command", choices=["evaluate", "evaluate-scenarios", "evaluate-full", "measure"])
     parser.add_argument("--documents", default=str(ROOT / "data/documents.json"))
     parser.add_argument("--queries", default=str(ROOT / "data/golden.json"))
     parser.add_argument("--multihop", default=str(ROOT / "data/multihop_golden.json"))
@@ -111,12 +169,21 @@ def main() -> None:
     parser.add_argument("--weight-freshness", type=float, default=0.20)
     parser.add_argument("--weight-authority", type=float, default=0.20)
     parser.add_argument("--weight-task", type=float, default=0.15)
+    parser.add_argument("--strategies", default="", help="Comma-separated assembler names for measure")
+    parser.add_argument("--live-llm", action="store_true", help="Run answer generation and LLM judges (requires API key)")
+    parser.add_argument("--no-rerank", action="store_true", help="Skip heuristic rerank before assembly in measure")
+    parser.add_argument("--answer-model", default="")
+    parser.add_argument("--judge-model", default="")
+    parser.add_argument("--max-llm-calls", type=int, default=100)
+    parser.add_argument("--min-coverage", type=float, default=0.34)
     args = parser.parse_args()
 
     if args.command == "evaluate":
         report = _run_evaluate(args)
     elif args.command == "evaluate-scenarios":
         report = _run_evaluate_scenarios(args)
+    elif args.command == "measure":
+        report = _run_measure(args)
     else:
         weights = ScoreWeights(
             relevance=args.weight_relevance,
