@@ -1,0 +1,63 @@
+name: measure-live
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Live LLM measure profile
+        required: true
+        default: nightly-live
+        type: choice
+        options:
+          - nightly-live
+      answer_model:
+        description: Answer model ID
+        required: true
+        default: gpt-6-luna
+      judge_model:
+        description: Judge model ID
+        required: true
+        default: gpt-6-luna
+      max_llm_calls:
+        description: Hard cap on LLM requests for this run
+        required: true
+        default: "120"
+
+jobs:
+  measure-live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image with LLM judge extras
+        run: docker build --build-arg INSTALL_LLM_JUDGE=1 -t contexting-strategies:live .
+      - name: Run live measure
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "${OPENAI_API_KEY}" ]; then
+            echo "OPENAI_API_KEY secret is required for measure-live"
+            exit 1
+          fi
+          mkdir -p reports
+          docker run --rm \
+            -e OPENAI_API_KEY \
+            -e CONTEXT_LAB_LIVE_LLM=true \
+            -v "$PWD/reports:/reports" \
+            contexting-strategies:live \
+            measure \
+              --profile '${{ inputs.profile }}' \
+              --live-llm \
+              --answer-model '${{ inputs.answer_model }}' \
+              --judge-model '${{ inputs.judge_model }}' \
+              --max-llm-calls '${{ inputs.max_llm_calls }}' \
+              --output /reports/measure-live.json
+      - name: Quality gate
+        run: |
+          docker run --rm -v "$PWD/reports:/reports" contexting-strategies:live \
+            check-measure --profile '${{ inputs.profile }}' \
+            --report /reports/measure-live.json
+      - name: Upload live report
+        uses: actions/upload-artifact@v4
+        with:
+          name: measure-live
+          path: reports/measure-live.json

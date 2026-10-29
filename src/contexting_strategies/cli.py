@@ -18,12 +18,21 @@ from .models import ScoreWeights
 from .retrieval import BM25Retriever
 from .full_evaluation import run_full_evaluation
 from .llm_judge import OpenAIAnswerGenerator, OpenAIAnswerJudge, OpenAIContextJudge
+from .measure_profiles import evaluate_gates, load_measure_profiles
 from .measurement_pipeline import run_measurement_pipeline, select_assemblers
 from .pipeline_config import PipelineConfig
 from .pricing import CallBudget, OPENAI_STANDARD_RATES_PER_MILLION, PRICING_AS_OF, PRICING_SOURCE
 from .scenario_evaluation import evaluate_abstention_on_queries, evaluate_multihop, evaluate_threads
 
 ROOT = Path(__file__).resolve().parents[2]
+PROFILES_PATH = ROOT / "config" / "measure_profiles.json"
+
+
+def _resolve_profile(name: str):
+    profiles = load_measure_profiles(PROFILES_PATH)
+    if name not in profiles:
+        raise SystemExit(f"Unknown profile '{name}'. Choose from: {', '.join(sorted(profiles))}")
+    return profiles[name]
 
 
 def _environment_note() -> dict:
@@ -105,14 +114,20 @@ def _run_measure(args: argparse.Namespace) -> dict:
     queries = load_queries(Path(args.queries))
     validate_dataset(documents, queries)
     env_config = PipelineConfig.from_env()
+    profile = _resolve_profile(args.profile) if args.profile else None
+    candidate_k = profile.candidate_k if profile else args.candidate_k
+    budget_tokens = profile.budget_tokens if profile else args.budget_tokens
+    apply_rerank = profile.apply_heuristic_rerank if profile else not args.no_rerank
+    live_llm = args.live_llm or env_config.live_llm or (profile.live_llm if profile else False)
+    max_llm_calls = profile.max_llm_calls if profile else args.max_llm_calls
     config = PipelineConfig(
-        candidate_k=args.candidate_k,
-        budget_tokens=args.budget_tokens,
-        apply_heuristic_rerank=not args.no_rerank,
-        live_llm=args.live_llm or env_config.live_llm,
+        candidate_k=candidate_k,
+        budget_tokens=budget_tokens,
+        apply_heuristic_rerank=apply_rerank,
+        live_llm=live_llm,
         answer_model=args.answer_model or env_config.answer_model,
         judge_model=args.judge_model or env_config.judge_model,
-        max_llm_calls=args.max_llm_calls,
+        max_llm_calls=max_llm_calls,
         min_coverage=args.min_coverage,
     )
     weights = ScoreWeights(
@@ -121,7 +136,10 @@ def _run_measure(args: argparse.Namespace) -> dict:
         authority=args.weight_authority,
         task=args.weight_task,
     )
-    assemblers = select_assemblers([s.strip() for s in args.strategies.split(",") if s.strip()] or None)
+    if profile:
+        assemblers = select_assemblers(list(profile.strategies))
+    else:
+        assemblers = select_assemblers([s.strip() for s in args.strategies.split(",") if s.strip()] or None)
     retriever = BM25Retriever(documents)
 
     context_judge = answer_generator = answer_judge = None
@@ -146,6 +164,8 @@ def _run_measure(args: argparse.Namespace) -> dict:
         answer_generator=answer_generator,
         answer_judge=answer_judge,
     )
+    if profile:
+        report["profile"] = {"name": profile.name, "description": profile.description}
     report["environment"] = _environment_note()
     if config.live_llm:
         report["environment"]["pricing_as_of"] = PRICING_AS_OF
@@ -154,9 +174,19 @@ def _run_measure(args: argparse.Namespace) -> dict:
     return report
 
 
+def _run_check_measure(args: argparse.Namespace) -> dict:
+    if not args.report:
+        raise SystemExit("check-measure requires --report")
+    if not args.profile:
+        raise SystemExit("check-measure requires --profile")
+    report = json.loads(Path(args.report).read_text())
+    profile = _resolve_profile(args.profile)
+    return evaluate_gates(report, profile)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Evaluate context assembly strategies for RAG prompts")
-    parser.add_argument("command", choices=["evaluate", "evaluate-scenarios", "evaluate-full", "measure"])
+    parser.add_argument("command", choices=["evaluate", "evaluate-scenarios", "evaluate-full", "measure", "check-measure"])
     parser.add_argument("--documents", default=str(ROOT / "data/documents.json"))
     parser.add_argument("--queries", default=str(ROOT / "data/golden.json"))
     parser.add_argument("--multihop", default=str(ROOT / "data/multihop_golden.json"))
@@ -176,6 +206,8 @@ def main() -> None:
     parser.add_argument("--judge-model", default="")
     parser.add_argument("--max-llm-calls", type=int, default=100)
     parser.add_argument("--min-coverage", type=float, default=0.34)
+    parser.add_argument("--profile", default="", help="Measure profile from config/measure_profiles.json")
+    parser.add_argument("--report", default="", help="Measure report JSON for check-measure")
     args = parser.parse_args()
 
     if args.command == "evaluate":
@@ -184,6 +216,8 @@ def main() -> None:
         report = _run_evaluate_scenarios(args)
     elif args.command == "measure":
         report = _run_measure(args)
+    elif args.command == "check-measure":
+        report = _run_check_measure(args)
     else:
         weights = ScoreWeights(
             relevance=args.weight_relevance,
@@ -206,6 +240,8 @@ def main() -> None:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(serialized + "\n")
     print(serialized)
+    if args.command == "check-measure" and not report.get("passed", True):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

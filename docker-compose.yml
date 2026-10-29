@@ -1,0 +1,46 @@
+services:
+  measure-offline:
+    build: .
+    image: contexting-strategies:local
+    command:
+      - measure
+      - --profile
+      - ci-all-strategies
+      - --output
+      - /reports/measure-ci-all-strategies.json
+    volumes:
+      - ./reports:/reports
+
+  measure-check:
+    build: .
+    image: contexting-strategies:local
+    depends_on:
+      - measure-offline
+    command:
+      - check-measure
+      - --profile
+      - ci-all-strategies
+      - --report
+      - /reports/measure-offline.json
+    volumes:
+      - ./reports:/reports
+
+  measure-live:
+    build: .
+    image: contexting-strategies:local
+    profiles: ["live"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      CONTEXT_LAB_LIVE_LLM: "true"
+    command:
+      - measure
+      - --profile
+      - nightly-live
+      - --live-llm
+      - --output
+      - /reports/measure-live.json
+    volumes:
+      - ./reports:/reports
