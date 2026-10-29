@@ -4,6 +4,20 @@ An engineering lab for a practical RAG question that sits **after retrieval** an
 
 The project implements the [context algorithm](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-algorithm.md), extended scenarios from the contexting docs, a **rerank → assemble** bridge to [reranking-strategies](https://github.com/CaioHAndradeLima/reranking-strategies), and a **production-style measurement pipeline** with optional **LLM judges** and cost accounting. Offline commands remain available for CI; live measurement can use **OpenAI** or your **local Cursor agent** (no OpenAI key).
 
+## Pipeline evaluation (`evaluate-pipeline`) — start here for CI
+
+Recommended check for [context evaluate assembling](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-evaluate-assembling.md): assembly metrics on the golden set, **abstention** behavior, and **multi-hop lift**, with pass/fail gates in one report.
+
+```bash
+pip install -e .
+context-lab evaluate-pipeline --profile ci-contexting-eval --output reports/pipeline-eval.json
+context-lab check-measure --profile ci-contexting-eval --report reports/pipeline-eval.json
+# or
+./scripts/docker-ci.sh ci-contexting-eval
+```
+
+Details: [docs/PIPELINE_EVAL.md](docs/PIPELINE_EVAL.md).
+
 ## Production measurement pipeline (`measure`)
 
 Use this when you want to compare **assembly strategies** the way a production eval job would: same retrieval (optional heuristic rerank), assemble, offline metrics, then—when enabled—**generate an answer**, **judge context quality**, and **judge answer groundedness** with structured JSON rubrics.
@@ -79,7 +93,7 @@ context-lab check-measure --profile ci-tight-budget --report reports/m.json
 
 **GitHub Actions**
 
-- [`measure-gate.yml`](.github/workflows/measure-gate.yml) — on every push/PR: Docker image build, matrix over profiles (`ci-all-strategies`, `ci-tight-budget`, `ci-pipeline-only`), measure + quality gate, artifact upload.
+- [`measure-gate.yml`](.github/workflows/measure-gate.yml) — on every push/PR: Docker build, matrix over profiles (including **`ci-contexting-eval`** via `evaluate-pipeline`, plus `measure` for other profiles), then `check-measure`.
 - [`measure-live.yml`](.github/workflows/measure-live.yml) — manual `workflow_dispatch` for **OpenAI** live measure. If `OPENAI_API_KEY` is missing, the job **skips** with a notice (safe to leave the secret empty). For local live runs without OpenAI, use `./scripts/measure-live-local.sh` with `CURSOR_API_KEY`.
 
 ## Start here
@@ -128,6 +142,7 @@ Requires Python 3.10+.
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
+python -m contexting_strategies.cli evaluate-pipeline --profile ci-contexting-eval
 python -m contexting_strategies.cli evaluate
 python -m contexting_strategies.cli evaluate-scenarios
 python -m contexting_strategies.cli evaluate-full
@@ -191,6 +206,7 @@ python -m unittest discover -s tests -v
 
 ## Related documentation
 
+- [Pipeline evaluation scorecard](docs/PIPELINE_EVAL.md) · [Guide coverage map](docs/LAB_COVERAGE.md)
 - [Contexting overview](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/tree/main/contexting)
 - [reranking-strategies](https://github.com/CaioHAndradeLima/reranking-strategies)
 - [AI-System-Architecturing-Engineering](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering)
