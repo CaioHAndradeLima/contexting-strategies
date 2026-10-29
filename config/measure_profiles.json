@@ -1,0 +1,73 @@
+{
+  "profiles": {
+    "ci-all-strategies": {
+      "description": "Default PR gate: compare all assembly strategies on the golden set.",
+      "strategies": [
+        "naive_retrieval_order",
+        "weighted_score",
+        "pipeline_acl_dedupe_score_diverse"
+      ],
+      "candidate_k": 10,
+      "budget_tokens": 200,
+      "apply_heuristic_rerank": true,
+      "gates": {
+        "pipeline_acl_dedupe_score_diverse": {
+          "min_evidence_coverage": 0.5,
+          "max_unauthorized_leak": 0.0
+        },
+        "weighted_score": {
+          "min_evidence_coverage": 0.5,
+          "max_unauthorized_leak": 0.0
+        },
+        "naive_retrieval_order": {
+          "min_evidence_coverage": 0.5,
+          "max_unauthorized_leak": 1.0
+        }
+      }
+    },
+    "ci-pipeline-only": {
+      "description": "Smoke profile for the production-style pipeline assembler.",
+      "strategies": ["pipeline_acl_dedupe_score_diverse"],
+      "candidate_k": 10,
+      "budget_tokens": 180,
+      "apply_heuristic_rerank": true,
+      "gates": {
+        "pipeline_acl_dedupe_score_diverse": {
+          "min_evidence_coverage": 0.6,
+          "max_unauthorized_leak": 0.0
+        }
+      }
+    },
+    "ci-tight-budget": {
+      "description": "Stress token budget to compare strategies under pressure.",
+      "strategies": ["weighted_score", "pipeline_acl_dedupe_score_diverse"],
+      "candidate_k": 10,
+      "budget_tokens": 100,
+      "apply_heuristic_rerank": true,
+      "gates": {
+        "pipeline_acl_dedupe_score_diverse": {
+          "min_evidence_coverage": 0.34,
+          "max_unauthorized_leak": 0.0
+        }
+      }
+    },
+    "nightly-live": {
+      "description": "Manual/nightly live LLM measurement (requires OPENAI_API_KEY).",
+      "strategies": [
+        "pipeline_acl_dedupe_score_diverse",
+        "weighted_score"
+      ],
+      "candidate_k": 10,
+      "budget_tokens": 220,
+      "apply_heuristic_rerank": true,
+      "live_llm": true,
+      "max_llm_calls": 120,
+      "gates": {
+        "pipeline_acl_dedupe_score_diverse": {
+          "min_judge_groundedness": 2.5,
+          "max_unauthorized_leak": 0.0
+        }
+      }
+    }
+  }
+}

@@ -40,6 +40,36 @@ python -m contexting_strategies.cli measure \
 
 Environment variables (`CONTEXT_LAB_*`) and flags are documented in [.env.example](.env.example). **Do not** treat demo corpus scores as production SLAs—swap in your corpus, golden labels, and models, then rerun `measure`.
 
+### Profiles and quality gates (CI / Docker)
+
+Strategy sets and pass/fail thresholds live in [config/measure_profiles.json](config/measure_profiles.json)—similar to a production eval config repo:
+
+| Profile | Strategies | Typical use |
+| --- | --- | --- |
+| `ci-all-strategies` | naive, weighted, pipeline | PR gate: compare all assemblers |
+| `ci-pipeline-only` | pipeline | Fast smoke on production assembler |
+| `ci-tight-budget` | weighted, pipeline | Stress small token budget |
+| `nightly-live` | pipeline, weighted + LLM judges | Manual/nightly with API key |
+
+```bash
+# Local production-like run (offline)
+./scripts/docker-ci.sh ci-all-strategies
+
+# Or compose
+docker compose run --rm measure-offline   # writes reports/measure-offline.json
+
+# Profile-based CLI
+context-lab measure --profile ci-tight-budget --output reports/m.json
+context-lab check-measure --profile ci-tight-budget --report reports/m.json
+```
+
+**GitHub Actions**
+
+- [`measure-gate.yml`](.github/workflows/measure-gate.yml) — on every push/PR: Docker image build, matrix over profiles (`ci-all-strategies`, `ci-tight-budget`, `ci-pipeline-only`), measure + quality gate, artifact upload.
+- [`measure-live.yml`](.github/workflows/measure-live.yml) — manual `workflow_dispatch`: live LLM measure with repository secret `OPENAI_API_KEY` (profile `nightly-live`).
+
+Add `OPENAI_API_KEY` under **Settings → Secrets and variables → Actions** before running the live workflow.
+
 ## Start here
 
 ### Single-hop assembly (120-token budget, local run 2026-10-29)
@@ -106,6 +136,7 @@ Query + ACL
 | Command | Purpose |
 | --- | --- |
 | `measure` | **Production pipeline** — strategy comparison + optional LLM generate/judge |
+| `check-measure` | Apply profile quality gates to a measure report JSON (exit 1 on failure) |
 | `evaluate` | Compare naive / weighted / pipeline assemblers (offline) |
 | `evaluate-scenarios` | Multi-hop, conversation history, abstention |
 | `evaluate-full` | All offline tracks + rerank bridge + analytical + lexical groundedness + workflow |

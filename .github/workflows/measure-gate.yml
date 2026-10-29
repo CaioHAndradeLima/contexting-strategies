@@ -1,0 +1,47 @@
+name: measure-gate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Measure profile from config/measure_profiles.json
+        required: true
+        default: ci-all-strategies
+        type: choice
+        options:
+          - ci-all-strategies
+          - ci-pipeline-only
+          - ci-tight-budget
+
+jobs:
+  measure-profiles:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        profile:
+          - ci-all-strategies
+          - ci-tight-budget
+          - ci-pipeline-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t contexting-strategies:ci .
+      - name: Run measure profile
+        run: |
+          mkdir -p reports
+          docker run --rm -v "$PWD/reports:/reports" contexting-strategies:ci \
+            measure --profile "${{ matrix.profile }}" \
+            --output "/reports/measure-${{ matrix.profile }}.json"
+      - name: Quality gate
+        run: |
+          docker run --rm -v "$PWD/reports:/reports" contexting-strategies:ci \
+            check-measure --profile "${{ matrix.profile }}" \
+            --report "/reports/measure-${{ matrix.profile }}.json"
+      - name: Upload measure report
+        uses: actions/upload-artifact@v4
+        with:
+          name: measure-${{ matrix.profile }}
+          path: reports/measure-${{ matrix.profile }}.json
