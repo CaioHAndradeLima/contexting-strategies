@@ -143,5 +143,56 @@
       "updated_at": "2026-10-01T00:00:00Z",
       "citation_id": "restricted-secret-rotation"
     }
+  },
+  {
+    "id": "doc-012",
+    "title": "Checkout conversion weekly metrics",
+    "text": "On 2026-08-18 the checkout funnel conversion rate dropped twelve percent week over week after elevated checkout API latency.",
+    "metadata": {
+      "team": "growth",
+      "tenant": "billing",
+      "authority_tier": "official",
+      "updated_at": "2026-08-19T00:00:00Z",
+      "event_at": "2026-08-18",
+      "citation_id": "metrics-checkout-conversion"
+    }
+  },
+  {
+    "id": "doc-013",
+    "title": "Checkout API error dashboard",
+    "text": "Between 2026-08-17 and 2026-08-19 the checkout API returned elevated HTTP 503 errors correlated with stuck billing worker retries.",
+    "metadata": {
+      "team": "billing",
+      "tenant": "billing",
+      "authority_tier": "official",
+      "updated_at": "2026-08-19T12:00:00Z",
+      "event_at": "2026-08-18",
+      "citation_id": "dashboard-checkout-503"
+    }
+  },
+  {
+    "id": "doc-014",
+    "title": "Checkout incident remediation note",
+    "text": "Incident INC-4821 remediation on 2026-08-20 restarted the billing worker and increased invoice retry attempts from two to three, restoring checkout success rates.",
+    "metadata": {
+      "team": "billing",
+      "tenant": "billing",
+      "authority_tier": "runbook",
+      "updated_at": "2026-08-21T00:00:00Z",
+      "event_at": "2026-08-20",
+      "citation_id": "checkout-remediation"
+    }
+  },
+  {
+    "id": "doc-015",
+    "title": "Billing database access policy",
+    "text": "Billing applications use platform-provisioned database credentials. Billing staff cannot read raw production DATABASE_URL values; request access through platform SRE.",
+    "metadata": {
+      "team": "billing",
+      "tenant": "billing",
+      "authority_tier": "official",
+      "updated_at": "2026-06-15T00:00:00Z",
+      "citation_id": "billing-db-access"
+    }
   }
 ]

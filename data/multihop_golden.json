@@ -1,0 +1,27 @@
+[
+  {
+    "id": "mh-001",
+    "query": "What is the timeline?",
+    "tags": ["multi_hop", "timeline"],
+    "hops": [
+      {
+        "id": "conversion",
+        "label": "Conversion impact",
+        "query": "checkout conversion rate drop August 2026",
+        "relevance": {"doc-012": 3}
+      },
+      {
+        "id": "api_errors",
+        "label": "API errors",
+        "query": "checkout API 503 errors August 2026",
+        "relevance": {"doc-013": 3}
+      },
+      {
+        "id": "resolution",
+        "label": "Remediation",
+        "query": "INC-4821 checkout remediation billing worker",
+        "relevance": {"doc-014": 3, "doc-006": 2}
+      }
+    ]
+  }
+]

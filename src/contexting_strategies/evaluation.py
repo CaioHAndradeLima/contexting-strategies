@@ -6,6 +6,7 @@ from time import perf_counter
 from .assemblers import ContextAssembler
 from .metrics import score_context
 from .models import Hit, QueryCase, ScoreWeights
+from .sufficiency import apply_sufficiency_gate
 
 
 def _percentile(values: list[float], percentile: float) -> float:
@@ -74,9 +75,12 @@ def evaluate(
         }
         for assembler in assembler_list:
             started = perf_counter()
-            context = assembler.assemble(case, candidates, budget_tokens, weights)
+            context = apply_sufficiency_gate(assembler.assemble(case, candidates, budget_tokens, weights), case)
             latency_ms = (perf_counter() - started) * 1000
             metrics = score_context(context, case)
+            from .scenario_evaluation import abstain_correct
+
+            metrics["abstain_correct"] = abstain_correct(context, case)
             latencies[assembler.name].append(latency_ms)
             metric_rows[assembler.name].append(metrics)
             row["strategies"][assembler.name] = {
