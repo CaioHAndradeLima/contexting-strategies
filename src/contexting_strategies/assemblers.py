@@ -103,6 +103,39 @@ class ContextAssembler(ABC):
         raise NotImplementedError
 
 
+class SimpleDocumentAssembler(ContextAssembler):
+    """MVP single-corpus shape: question, top chunks, citation IDs (tenant-safe)."""
+
+    name = "simple_document_mvp"
+
+    def assemble(
+        self,
+        case: QueryCase,
+        hits: list[Hit],
+        budget_tokens: int,
+        weights: ScoreWeights,
+    ) -> AssembledContext:
+        allowed = [hit for hit in hits if _tenant_allowed(hit.document, case.allowed_tenants)]
+        pairs = [(hit, hit.score) for hit in allowed]
+        context = _pack_chunks(self.name, pairs, case, budget_tokens, max_per_document=2)
+        blocks = []
+        for chunk in context.chunks:
+            blocks.append(
+                f"[{chunk.citation_id}] doc_id={chunk.document.id} title={chunk.document.title}\n"
+                f"{chunk.document.text}"
+            )
+        rendered = f"Question:\n{case.query}\n\nSources:\n" + "\n\n".join(blocks)
+        return AssembledContext(
+            strategy=context.strategy,
+            chunks=context.chunks,
+            rendered=rendered,
+            token_count=estimate_tokens(rendered),
+            dropped_unauthorized=context.dropped_unauthorized,
+            dropped_duplicate=context.dropped_duplicate,
+            budget_tokens=context.budget_tokens,
+        )
+
+
 class NaiveRetrievalOrderAssembler(ContextAssembler):
     """Baseline: keep retrieval order and fill the budget (include-every-chunk anti-pattern)."""
 

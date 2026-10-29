@@ -103,6 +103,14 @@ python -m contexting_strategies.cli evaluate-full --output reports/full.json
 | **Reliability** | [Reliable architecture](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-reliable-architecture.md) | Injection phrase filtering in [reliability.py](src/contexting_strategies/reliability.py); workflow flags |
 | **Five prompt inputs** | [Context info for output](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-info-for-output.md) | [full_prompt.py](src/contexting_strategies/full_prompt.py) render order |
 | **Workflow nodes** | [LangGraph assembly](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-assembly-langchain-langgraph.md) | [workflow.py](src/contexting_strategies/workflow.py) stage timings (no LangGraph dependency) |
+| **Scoring math** | [Scoring math](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-scoring-math.md) | `scoring_math` — \(R,F,A,T,S(d)\) breakdown on sample queries |
+| **Simple doc MVP** | [Simple document question](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-simple-document-question.md) | `simple_document` — `simple_document_mvp` assembler |
+| **Assembly flow** | [Assembly flow](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-assembly-flow.md) | `assembly_flow` — retrieve → rerank → assemble → sufficiency |
+| **Trade-offs** | [Assembling trade-offs](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-assembling-trade-offs.md) | `tradeoffs` — anti-pattern flags per strategy |
+| **Query resolution** | [Scoring math — contextual resolution](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-scoring-math.md#contextual-query-resolution-before-retrieval) | `query_resolution` — ambiguous vs resolved follow-up coverage |
+| **Maturity matrix** | [Architecturing decision-based](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-architecturing-decision-based.md) | `maturity` — what the lab implements vs enterprise gaps |
+
+Full doc ↔ code map: [docs/LAB_COVERAGE.md](docs/LAB_COVERAGE.md).
 
 **Sample `evaluate-full` metrics (synthetic, same date):** rerank-bridge mean coverage ≈ **0.90** (retrieval/heuristic) and **0.94** (imported rerank report); analytical structured numeric support **1.0** on `an-001`; groundedness mean lexical score **0.67** with correctness proxy **1.0** on bundled samples.
 
