@@ -20,6 +20,12 @@ from .models import QueryCase, ScoreWeights
 from .rerank_bridge import evaluate_rerank_to_assembly, load_rerank_report
 from .retrieval import BM25Retriever
 from .scenario_evaluation import evaluate_abstention_on_queries, evaluate_multihop, evaluate_threads
+from .assembly_flow import summarize_rag_pipeline
+from .maturity import lab_maturity_snapshot
+from .query_resolution import evaluate_query_resolution
+from .scoring_breakdown import evaluate_scoring_math
+from .simple_document import evaluate_simple_document
+from .tradeoffs import evaluate_tradeoffs
 from .workflow import run_context_workflow
 
 
@@ -40,15 +46,35 @@ def run_full_evaluation(
     retriever = BM25Retriever(documents)
     search = lambda query, limit: retriever.search(query, limit)
 
+    assembly = evaluate(
+        queries,
+        search,
+        default_assemblers(),
+        candidate_k=candidate_k,
+        budget_tokens=budget_tokens,
+        weights=weights,
+    )
+    threads = load_thread_scenarios(root / "data/threads.json")
     report = {
-        "assembly": evaluate(
+        "assembly": assembly,
+        "tradeoffs": evaluate_tradeoffs(assembly),
+        "scoring_math": evaluate_scoring_math(
             queries,
             search,
-            default_assemblers(),
+            candidate_k=candidate_k,
+            weights=weights,
+            sample_query_ids=["q-001", "q-004"],
+        ),
+        "simple_document": evaluate_simple_document(
+            queries,
+            search,
             candidate_k=candidate_k,
             budget_tokens=budget_tokens,
             weights=weights,
         ),
+        "query_resolution": evaluate_query_resolution(threads, search, candidate_k=candidate_k, weights=weights),
+        "assembly_flow": summarize_rag_pipeline(queries[0], search, candidate_k=candidate_k, budget_tokens=max(budget_tokens, 180), weights=weights),
+        "maturity": lab_maturity_snapshot(),
         "scenarios": {
             "abstention": evaluate_abstention_on_queries(
                 queries,
@@ -66,7 +92,7 @@ def run_full_evaluation(
                 candidate_k=candidate_k,
             ),
             "conversation": evaluate_threads(
-                load_thread_scenarios(root / "data/threads.json"),
+                threads,
                 search,
                 weights=weights,
                 candidate_k=candidate_k,
