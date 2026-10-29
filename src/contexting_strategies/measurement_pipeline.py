@@ -10,6 +10,7 @@ from .metrics import score_context
 from .models import Hit, QueryCase, ScoreWeights
 from .pipeline_config import PipelineConfig
 from .pricing import PRICING_AS_OF, PRICING_SOURCE, OPENAI_STANDARD_RATES_PER_MILLION, CallBudget, combine_usage
+from .scenario_evaluation import abstain_correct
 from .sufficiency import apply_sufficiency_gate
 
 
@@ -72,6 +73,7 @@ def run_measurement_pipeline(
             )
             assembly_ms = (perf_counter() - asm_started) * 1000
             offline = score_context(context, case)
+            offline["abstain_correct"] = abstain_correct(context, case)
             row = {
                 "query_id": case.id,
                 "strategy": assembler.name,

@@ -25,6 +25,28 @@
         }
       }
     },
+    "ci-contexting-eval": {
+      "description": "Contexting pipeline scorecard: assembly metrics, abstention, and multi-hop lift (evaluate-pipeline).",
+      "strategies": ["pipeline_acl_dedupe_score_diverse"],
+      "candidate_k": 10,
+      "budget_tokens": 200,
+      "apply_heuristic_rerank": true,
+      "gates": {
+        "pipeline_acl_dedupe_score_diverse": {
+          "min_evidence_coverage": 0.5,
+          "max_unauthorized_leak": 0.0,
+          "max_redundancy_rate": 0.45,
+          "min_citation_traceability": 1.0,
+          "max_assembly_ms_p95": 150.0,
+          "min_abstain_correct": 0.85
+        }
+      },
+      "scenario_gates": {
+        "min_abstain_correct_rate": 0.85,
+        "min_multihop_hop_coverage": 0.75,
+        "min_multihop_lift_over_baseline": 0.05
+      }
+    },
     "ci-pipeline-only": {
       "description": "Smoke profile for the production-style pipeline assembler.",
       "strategies": ["pipeline_acl_dedupe_score_diverse"],

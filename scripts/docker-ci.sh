@@ -7,8 +7,14 @@ IMAGE="${CONTEXT_LAB_IMAGE:-contexting-strategies:local}"
 mkdir -p reports
 docker build -t "${IMAGE}" .
 
+if [ "${PROFILE}" = "ci-contexting-eval" ]; then
+  CMD="evaluate-pipeline"
+else
+  CMD="measure"
+fi
+
 docker run --rm -v "$(pwd)/reports:/reports" "${IMAGE}" \
-  measure --profile "${PROFILE}" --output "/reports/measure-${PROFILE}.json"
+  "${CMD}" --profile "${PROFILE}" --output "/reports/measure-${PROFILE}.json"
 
 docker run --rm -v "$(pwd)/reports:/reports" "${IMAGE}" \
   check-measure --profile "${PROFILE}" --report "/reports/measure-${PROFILE}.json"
