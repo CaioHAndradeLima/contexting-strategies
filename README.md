@@ -1,104 +1,116 @@
 # Contexting Strategies
 
-An engineering lab for a practical RAG question that sits **after retrieval** and **before the LLM call**: **how should you assemble evidence into a prompt under a token budget** without leaking unauthorized text, repeating the same facts, or starving critical passages?
+A **learning lab** for one step in RAG and multi-agent systems: after something retrieves candidate text, and before the model generates an answer, **what exactly goes into the prompt**—and how you know that choice was correct, safe, and worth the tokens.
 
-The project implements the [context algorithm](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-algorithm.md), extended scenarios from the contexting docs, a **rerank → assemble** bridge to [reranking-strategies](https://github.com/CaioHAndradeLima/reranking-strategies), and a **production-style measurement pipeline** with optional **LLM judges** and cost accounting. Offline commands remain available for CI; live measurement can use **OpenAI** or your **local Cursor agent** (no OpenAI key).
+Concept guides live in [AI-System-Architecturing-Engineering → contexting](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/tree/main/contexting). This repo is the **runnable version** on a synthetic corpus (not a hosted product).
 
-## Pipeline evaluation (`evaluate-pipeline`) — start here for CI
+---
 
-Recommended check for [context evaluate assembling](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-evaluate-assembling.md): assembly metrics on the golden set, **abstention** behavior, and **multi-hop lift**, with pass/fail gates in one report.
+## 1. What is “context” in a multi-agent system?
+
+**Context** is everything the model is allowed to treat as **evidence** for this turn—not the system instructions you trust, but the **retrieved chunks, structured query results, and selected conversation history** bundled into the user-facing prompt.
+
+In a single-agent RAG app that is usually one assembly step. In **multi-agent** setups each agent often gets a **different slice** of evidence (billing agent vs catalog agent), but the same rules apply: only authorized, task-relevant, budget-sized text with traceable source IDs.
+
+Typical pipeline position:
+
+```text
+User + thread state
+    → (optional) rewrite query for retrieval
+    → retrieve candidates          ← reranking-strategies lab
+    → CONTEXT ASSEMBLY             ← this project
+    → prompt template + policy     ← prompting docs
+    → LLM → answer (+ citations)
+    → validate / abstain / retry   ← can loop (see §4)
+```
+
+Five inputs the lab can render together ([context info for output](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-info-for-output.md)): system policy, retrieved evidence, structured results (SQL/API), conversation history, current request. Implementation: `full_prompt.py` / `evaluate-full` → `context_info_for_output`.
+
+**Task-scoped context** (multi-agent): `task_context.py` filters candidates by team/agent before assembly—same pipeline, smaller exposure.
+
+---
+
+## 2. How do you guarantee the *right* context?
+
+You cannot “guarantee” with prompts alone; you **measure and gate** assembly against labeled expectations.
+
+| Mechanism | What it checks | In this lab |
+| --- | --- | --- |
+| **Golden relevance labels** | Required doc IDs appear in the assembled prompt | `evidence_coverage` in `metrics.py` |
+| **Multi-hop hop labels** | Each sub-question’s evidence is represented | `evaluate_multihop` / hop coverage |
+| **Scoring \(S(d)\)** | Pick chunks by relevance, freshness, authority, task fit—not raw BM25 order only | `weighted_score` assembler, `scoring_math` in `evaluate-full` |
+| **Rerank before assemble** | Better ordering of the same candidates | Heuristic rerank in `measure`; bridge from [reranking-strategies](https://github.com/CaioHAndradeLima/reranking-strategies) |
+| **Query resolution** | Follow-ups like “did we fix it?” retrieve on a **resolved** query | `query_rewrite.py`, `threads.json`, `query_resolution` in `evaluate-full` |
+| **Sufficiency gate** | If coverage is too low, **do not** pretend the context is enough | `sufficiency.py`; pairs with abstention metrics |
+| **Live judges (optional)** | LLM rubric on assembled context + answer | `measure --live-llm` (OpenAI or Cursor via `--llm-provider cursor`) |
+
+**Production-shaped check (recommended on every change):**
 
 ```bash
 pip install -e .
 context-lab evaluate-pipeline --profile ci-contexting-eval --output reports/pipeline-eval.json
 context-lab check-measure --profile ci-contexting-eval --report reports/pipeline-eval.json
-# or
-./scripts/docker-ci.sh ci-contexting-eval
 ```
 
-Details: [docs/PIPELINE_EVAL.md](docs/PIPELINE_EVAL.md).
+That runs assembly on the golden set, abstention scenarios, and multi-hop lift, then applies thresholds in [config/measure_profiles.json](config/measure_profiles.json). Details: [docs/PIPELINE_EVAL.md](docs/PIPELINE_EVAL.md).
 
-## Production measurement pipeline (`measure`)
+---
 
-Use this when you want to compare **assembly strategies** the way a production eval job would: same retrieval (optional heuristic rerank), assemble, offline metrics, then—when enabled—**generate an answer**, **judge context quality**, and **judge answer groundedness** with structured JSON rubrics.
+## 3. How do you avoid *wrong* context or *too much* context?
 
-```bash
-cp .env.example .env   # CURSOR_API_KEY and/or OPENAI_API_KEY
-pip install -e '.[llm-judge,llm-cursor]'
-
-# Offline only (CI-safe): offline metrics + abstention, no API spend
-python -m contexting_strategies.cli measure \
-  --strategies pipeline_acl_dedupe_score_diverse,weighted_score \
-  --budget-tokens 200 --output reports/measure-offline.json
-
-# Live LLM measurement with local Cursor agent (same rubrics, hard call budget)
-./scripts/measure-live-local.sh nightly-live reports/measure-live-cursor.json
-
-# Or explicitly:
-python -m contexting_strategies.cli measure \
-  --live-llm --llm-provider cursor \
-  --profile nightly-live \
-  --max-llm-calls 80 \
-  --output reports/measure-live-cursor.json
-
-# OpenAI path (optional)
-python -m contexting_strategies.cli measure \
-  --live-llm --llm-provider openai \
-  --strategies pipeline_acl_dedupe_score_diverse,weighted_score \
-  --answer-model gpt-6-luna --judge-model gpt-6-luna \
-  --max-llm-calls 150 \
-  --output reports/measure-live-openai.json
-```
-
-| Stage | Component | Output |
+| Risk | Mitigation | In this lab |
 | --- | --- | --- |
-| Retrieve | BM25 (+ optional heuristic rerank) | Candidate set shared across strategies |
-| Assemble | Selected assemblers | Prompt + offline metrics (coverage, leaks, redundancy) |
-| Sufficiency | Gate | Skip generation when evidence is thin |
-| Generate | `OpenAIAnswerGenerator` | Answer from assembled context only |
-| Judge context | `OpenAIContextJudge` | sufficiency / citations / safety (0–4) |
-| Judge answer | `OpenAIAnswerJudge` | correctness / groundedness / calibration (0–4) |
-| Report | `measurement_pipeline.py` | Per-strategy summary, token/cost totals, recommendation |
+| **Cross-tenant / ACL leak** | Filter before assembly; never trust the model to ignore forbidden chunks | Pipeline step 1 (`context_pipeline.py`); `unauthorized_leak` metric; naive assembler **intentionally** leaks for contrast |
+| **Prompt injection in docs** | Treat retrieved text as untrusted; scan/sanitize | `reliability.py`, injection sample `doc-016` |
+| **Duplicates & noise** | Dedupe, diversity caps, don’t fill budget with redundant hits | Pipeline steps 2–5; `redundancy_rate` |
+| **Token bloat** | Budget, compact at sentence boundaries, selective history | `compacting.py`; conversation strategies `last_n` / `summary_plus_recent` |
+| **Wrong agent seeing everything** | Task-specific retrieval + assembly | `task_context.py` |
+| **Over-confident answers** | Abstain when evidence is thin | Sufficiency gate + `abstain_correct` / `abstain_correct_rate` |
 
-Environment variables (`CONTEXT_LAB_*`) and flags are documented in [.env.example](.env.example). **Do not** treat demo corpus scores as production SLAs—swap in your corpus, golden labels, and models, then rerun `measure`.
+Full algorithm (steps 1–8): [context-algorithm.md](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-algorithm.md) — implemented in `pipeline_acl_dedupe_score_diverse`.
 
-### Profiles and quality gates (CI / Docker)
+---
 
-Strategy sets and pass/fail thresholds live in [config/measure_profiles.json](config/measure_profiles.json)—similar to a production eval config repo:
+## 4. Loops during context assembly and the wider cycle
 
-| Profile | Strategies | Typical use |
+Contexting is usually **linear**, but the **system around it** often loops:
+
+```mermaid
+flowchart LR
+  retrieve[retrieve_node]
+  assemble[assemble_context_node]
+  generate[generate_answer_node]
+  validate[validate_answer_node]
+  retrieve --> assemble --> generate --> validate
+  validate -->|insufficient / failed validation| retrieve
+  validate -->|ok| done[Return response]
+```
+
+| Loop type | When | Lab coverage |
 | --- | --- | --- |
-| `ci-all-strategies` | naive, weighted, pipeline | PR gate: compare all assemblers |
-| `ci-pipeline-only` | pipeline | Fast smoke on production assembler |
-| `ci-tight-budget` | weighted, pipeline | Stress small token budget |
-| `ci-contexting-eval` | pipeline scorecard | **Recommended PR gate** — coverage, leaks, redundancy, citations, abstention, multi-hop lift |
-| `nightly-live` | pipeline, weighted + LLM judges | Manual/nightly with API key |
+| **Retrieve → assemble → validate → retrieve again** | Validation fails or evidence too thin | `langgraph_workflow.py` models nodes; validation uses lexical groundedness + abstain; graph spec in `evaluate-full` → `langgraph` |
+| **Multi-hop retrieval** | One query is not enough; several sub-queries | `multihop.py` — multiple retrievals, one assembled prompt |
+| **Conversation + rewrite** | Resolve “it” then retrieve | `query_rewrite.py` + thread fixtures |
+| **Measure / CI loop** | Change assembler → rerun eval → gate | `evaluate-pipeline` + GitHub `measure-gate.yml` |
 
-```bash
-context-lab evaluate-pipeline --profile ci-contexting-eval --output reports/pipeline-eval.json
-context-lab check-measure --profile ci-contexting-eval --report reports/pipeline-eval.json
-```
+LangGraph itself is not a dependency; node names match [context-assembly-langchain-langgraph.md](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-assembly-langchain-langgraph.md) so you can map the lab to a real graph later.
 
-```bash
-# Local production-like run (offline)
-./scripts/docker-ci.sh ci-all-strategies
+---
 
-# Or compose
-docker compose run --rm measure-offline   # writes reports/measure-offline.json
+## 5. Assembly strategies in this project — when to use which
 
-# Profile-based CLI
-context-lab measure --profile ci-tight-budget --output reports/m.json
-context-lab check-measure --profile ci-tight-budget --report reports/m.json
-```
+All strategies share the same retriever in the lab (BM25 on `data/documents.json`). They differ in **how candidates become prompt text**.
 
-**GitHub Actions**
+| Strategy | Assembler name | Use when | Trade-off |
+| --- | --- | --- | --- |
+| **Naive retrieval order** | `naive_retrieval_order` | Baseline / anti-pattern demo | High coverage sometimes, **can leak ACL**, noisy |
+| **Weighted \(S(d)\)** | `weighted_score` | Simple production step: score then pack budget | No ACL/dedupe/diversity—teaches scoring-only |
+| **Full pipeline** | `pipeline_acl_dedupe_score_diverse` | **Default “production” assembler** | ACL + dedupe + score + diversity + compacting |
+| **Simple doc MVP** | `simple_document_mvp` | Minimal Q&A prompt shape (question + cited chunks) | [Simple document question](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-simple-document-question.md) |
+| **Multi-hop assembly** | `multihop_fair_budget_pipeline` | Questions needing several retrieval hops | More retrieval cost; better hop coverage vs single query |
+| **History + evidence split** | `pipeline_with_*` in threads | Follow-ups with token split between chat and docs | See `evaluate-scenarios` |
 
-- [`measure-gate.yml`](.github/workflows/measure-gate.yml) — on every push/PR: Docker build, matrix over profiles (including **`ci-contexting-eval`** via `evaluate-pipeline`, plus `measure` for other profiles), then `check-measure`.
-- [`measure-live.yml`](.github/workflows/measure-live.yml) — manual `workflow_dispatch` for **OpenAI** live measure. If `OPENAI_API_KEY` is missing, the job **skips** with a notice (safe to leave the secret empty). For local live runs without OpenAI, use `./scripts/measure-live-local.sh` with `CURSOR_API_KEY`.
-
-## Start here
-
-### Single-hop assembly (120-token budget, local run 2026-10-29)
+**Synthetic single-hop snapshot (120-token budget, demo corpus):**
 
 | Strategy | Evidence coverage | Unauthorized leak rate |
 | --- | ---: | ---: |
@@ -106,107 +118,87 @@ context-lab check-measure --profile ci-tight-budget --report reports/m.json
 | Weighted \(S(d)\) | 0.67 | 0.00 |
 | Full pipeline | 0.67 | 0.00 |
 
-### Full lab (`evaluate-full`)
+Compare strategies offline: `context-lab evaluate` or `context-lab measure --profile ci-all-strategies`.
 
-One command runs assembly, scenarios, rerank bridge, analytical, groundedness, and workflow stages:
+Pair with **reranking-strategies**: export ranked lists (`export_context_candidates.py`) → `data/rerank_report_sample.json` → rerank bridge in `evaluate-full`.
 
-```bash
-python -m contexting_strategies.cli evaluate-full --output reports/full.json
-```
+---
 
-| Track | Doc guide | What the lab measures |
-| --- | --- | --- |
-| **A — Rerank → assemble** | [Reranking](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/retrieval/search/retrieval-strategy-reranking.md) · [assembly flow](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-assembly-flow.md) | Evidence coverage after BM25 order vs heuristic rerank vs imported [rerank report](data/rerank_report_sample.json) |
-| **B — Analytical context** | [Analytical question](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-analytical-question.md) | Structured SQL block + doc evidence; numeric support vs reference answer |
-| **C — Groundedness** | [Evaluate assembling](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-evaluate-assembling.md) | Lexical groundedness + correctness proxy on [answer_samples.json](data/answer_samples.json) (no live LLM required) |
-| **Multi-hop / history / abstain** | [Multi-hop](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-multi-hop-question.md) · [Conversation strategies](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-conversation-strategies.md) | `evaluate-scenarios` (hop coverage 0.17→0.83 on `mh-001`; history token savings) |
-| **Reliability** | [Reliable architecture](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-reliable-architecture.md) | Injection phrase filtering in [reliability.py](src/contexting_strategies/reliability.py); workflow flags |
-| **Five prompt inputs** | [Context info for output](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-info-for-output.md) | [full_prompt.py](src/contexting_strategies/full_prompt.py) render order |
-| **Workflow nodes** | [LangGraph assembly](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-assembly-langchain-langgraph.md) | [workflow.py](src/contexting_strategies/workflow.py) stage timings (no LangGraph dependency) |
-| **Scoring math** | [Scoring math](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-scoring-math.md) | `scoring_math` — \(R,F,A,T,S(d)\) breakdown on sample queries |
-| **Simple doc MVP** | [Simple document question](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-simple-document-question.md) | `simple_document` — `simple_document_mvp` assembler |
-| **Assembly flow** | [Assembly flow](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-assembly-flow.md) | `assembly_flow` — retrieve → rerank → assemble → sufficiency |
-| **Trade-offs** | [Assembling trade-offs](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-assembling-trade-offs.md) | `tradeoffs` — anti-pattern flags per strategy |
-| **Query resolution** | [Scoring math — contextual resolution](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-scoring-math.md#contextual-query-resolution-before-retrieval) | `query_resolution` — ambiguous vs resolved follow-up coverage |
-| **Maturity matrix** | [Architecturing decision-based](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/blob/main/contexting/context-architecturing-decision-based.md) | `maturity` — what the lab implements vs enterprise gaps |
+## 6. Metrics — what to look at in reports
 
-Full doc ↔ code map: [docs/LAB_COVERAGE.md](docs/LAB_COVERAGE.md).
+### 6.1 Scorecard (`evaluate-pipeline`)
 
-**Sample `evaluate-full` metrics (synthetic, same date):** rerank-bridge mean coverage ≈ **0.90** (retrieval/heuristic) and **0.94** (imported rerank report); analytical structured numeric support **1.0** on `an-001`; groundedness mean lexical score **0.67** with correctness proxy **1.0** on bundled samples.
+After `evaluate-pipeline`, open `scorecard` in the JSON:
 
-### Quick start
-
-Requires Python 3.10+.
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-python -m contexting_strategies.cli evaluate-pipeline --profile ci-contexting-eval
-python -m contexting_strategies.cli evaluate
-python -m contexting_strategies.cli evaluate-scenarios
-python -m contexting_strategies.cli evaluate-full
-```
-
-### Rerank report import
-
-From **reranking-strategies**:
-
-```bash
-python scripts/export_context_candidates.py --output rerank_report.json
-```
-
-Copy or point contexting at that file (default fixture: `data/rerank_report_sample.json`).
-
-## Architecture
-
-```
-Query + ACL
-   → retrieve → rerank (optional / bridge) → assemble → sufficiency gate
-   → [analytical structured block] → full prompt render → (optional) answer + groundedness
-```
-
-## Commands
-
-| Command | Purpose |
+| Field | Meaning |
 | --- | --- |
-| `measure` | **Production pipeline** — strategy comparison + optional LLM generate/judge |
-| `evaluate-pipeline` | **Contexting scorecard** — assembly + abstention + multi-hop with `scorecard` summary |
-| `check-measure` | Apply profile quality gates to a measure report JSON (exit 1 on failure) |
-| `evaluate` | Compare naive / weighted / pipeline assemblers (offline) |
-| `evaluate-scenarios` | Multi-hop, conversation history, abstention |
-| `evaluate-full` | All offline tracks + rerank bridge + analytical + lexical groundedness + workflow |
+| `assembly.evidence_coverage` | Fraction of must-have golden docs present |
+| `assembly.redundancy_rate` | Overlap between included chunks |
+| `assembly.citation_traceability` | Citation IDs appear in rendered prompt |
+| `assembly.unauthorized_leak` | Any forbidden tenant in prompt (want **0** for pipeline) |
+| `assembly.assembly_ms_p95` | Assembly latency |
+| `assembly.abstain_correct_rate` | Sufficiency/abstain matches query answerability |
+| `abstention.abstain_correct_rate` | Same, abstention-focused pass on golden |
+| `multihop.lift_over_baseline` | Multi-hop assembly vs one-shot retrieval |
 
-## Data files
+Gates for CI profile **`ci-contexting-eval`**: [PIPELINE_EVAL.md](docs/PIPELINE_EVAL.md).
 
-| File | Role |
+### 6.2 Strategy comparison (`measure`)
+
+`summary.<strategy>` adds per-strategy means; with `--live-llm`:
+
+| Field | Meaning |
 | --- | --- |
-| `data/documents.json` | Corpus with tenant, authority, citations, injection sample `doc-016` |
-| `data/golden.json` | Single-hop labeled queries |
-| `data/multihop_golden.json` | Per-hop sub-queries |
-| `data/threads.json` | Follow-up history scenarios |
-| `data/structured_results.json` | SQL-style blocks for analytical cases |
-| `data/analytical_golden.json` | Analytics questions |
-| `data/answer_samples.json` | Answers for offline groundedness |
-| `data/rerank_report_sample.json` | Rankings exported from reranking-strategies |
+| `judge_evidence_sufficiency` | Context quality (0–4) |
+| `judge_groundedness` / `judge_correctness` | Answer quality (0–4) |
+| `llm_usage_total` | Calls and cost estimate (OpenAI path) |
 
-## Tests
+Profile **`nightly-live`** + `./scripts/measure-live-local.sh` (Cursor, no OpenAI key required).
+
+### 6.3 Full syllabus (`evaluate-full`)
+
+One JSON with every guide track (analytical SQL, LangGraph trace, trade-off flags, maturity snapshot). Map: [docs/LAB_COVERAGE.md](docs/LAB_COVERAGE.md).
+
+---
+
+## 7. Commands (cheat sheet)
+
+| Goal | Command |
+| --- | --- |
+| **PR / regression gate** | `evaluate-pipeline --profile ci-contexting-eval` + `check-measure` |
+| Compare assemblers | `evaluate` or `measure --profile ci-all-strategies` |
+| Multi-hop, history, abstain only | `evaluate-scenarios` |
+| All doc topics + experiments | `evaluate-full --output reports/full.json` |
+| Live generate + judges | `measure --live-llm` or `measure-live-local.sh` |
+| Docker CI | `./scripts/docker-ci.sh ci-contexting-eval` |
+
+Requires **Python 3.10+**:
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .                    # core lab
+pip install -e '.[llm-judge,llm-cursor]'   # optional live judges
+```
+
+---
+
+## 8. What this repo is not
+
+- **Not** deployment infra (Fargate, tracing backends)—see `maturity.production_deployment_only` in `evaluate-full`.
+- **Not** your production corpus: swap `data/*.json` and rerun eval.
+- **Not** a substitute for retrieval quality—that is [reranking-strategies](https://github.com/CaioHAndradeLima/reranking-strategies).
+- Demo scores are **relative** (strategy A vs B on fixtures), not SLAs.
+
+---
+
+## 9. Development
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-## Honest limitations
+**GitHub Actions:** [`measure-gate.yml`](.github/workflows/measure-gate.yml) (offline profiles + `ci-contexting-eval`); optional [`measure-live.yml`](.github/workflows/measure-live.yml) (OpenAI; skips if no key).
 
-- **`evaluate-full`** reports **`coverage.lab_coverage_percent: 100`** for the [contexting guide syllabus](docs/LAB_COVERAGE.md)—every `contexting/*.md` topic has runnable code. That is not the same as production deployment (Fargate, live warehouse SQL, org-wide tracing)—see `maturity.production_deployment_only`.
-- **`measure --live-llm`** can use OpenAI or **Cursor** (`--llm-provider cursor`); cap calls with `--max-llm-calls`.
-- Offline groundedness is lexical; live **`measure`** uses LLM judges when enabled.
-- **Query rewrite** in the lab is rule-based; swap in an LLM rewriter in production if needed.
-- Synthetic corpora **do not predict** production metrics.
+**Data fixtures:** `data/documents.json`, `golden.json`, `multihop_golden.json`, `threads.json`, `structured_results.json`, etc.—see repo `data/` directory.
 
-## Related documentation
-
-- [Pipeline evaluation scorecard](docs/PIPELINE_EVAL.md) · [Guide coverage map](docs/LAB_COVERAGE.md)
-- [Contexting overview](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/tree/main/contexting)
-- [reranking-strategies](https://github.com/CaioHAndradeLima/reranking-strategies)
-- [AI-System-Architecturing-Engineering](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering)
+**Related:** [Contexting docs](https://github.com/CaioHAndradeLima/AI-System-Architecturing-Engineering/tree/main/contexting) · [PIPELINE_EVAL.md](docs/PIPELINE_EVAL.md) · [LAB_COVERAGE.md](docs/LAB_COVERAGE.md)
